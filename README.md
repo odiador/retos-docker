@@ -1,7 +1,8 @@
 # Retos de Docker
 
-- [x] Instale docker en su equipo y verifique su correcto funcionamiento.
+- [x] Instale docker en su equipo y verifique su correcto funcionamiento: [Reto 1](/Reto_1)
 
+![a](/Images/Reto_1.png)
 ## Reto 2
 
 - [ ] Cree un programa servidor tipo web que espere la llegada de una solicitud por el puerto 80, dicho
