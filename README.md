@@ -3,6 +3,7 @@
 - [x] Instale docker en su equipo y verifique su correcto funcionamiento: [Reto 1](/Reto_1)
 
 ![a](/Images/Reto_1.png)
+
 ## Reto 2
 
 - [ ] Cree un programa servidor tipo web que espere la llegada de una solicitud por el puerto 80, dicho
@@ -15,7 +16,11 @@ servidor debe responder de la siguiente forma:
 
 ## Reto 3
 
-- [ ] Investigue JWT
+- [x] Investigue JWT
+
+Un JWT, o JSON Web Token, es un estándar abierto ([RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519)) que define una forma compacta y autónoma de transmitir información de forma segura entre dos partes como un objeto JSON. Esta información, conocida como reclamaciones, puede ser verificada y confiable debido a su firma digital. 
+
+
 - [ ] Identifique y seleccione una herramienta para el manejo de la autenticación web.
 - [ ] Despliegue dicha herramienta junto con la aplicación del reto anterior usando docker compose.
 - [ ] Verifique el correcto funcionamiento invocando el servicio de autenticación de la herramienta desplegada y generando un token.
