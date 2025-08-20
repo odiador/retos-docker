@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  saludo:
+    build: ./Reto_2
+    ports:
+      - "80:80"
+    environment:
+      - PORT=80
+  auth:
+    build: ./Reto_3/auth
+    ports:
+      - "3001:3001"
+    environment:
+      - JWT_SECRET=mi_secreto_super_seguro
+      - TOKEN_EXP=1h
