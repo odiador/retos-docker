@@ -14,6 +14,16 @@ servidor debe responder de la siguiente forma:
 - [ ] Despliegue la aplicación creada en un contenedor usando docker compose.
 - [ ] Verifique el correcto funcionamiento de su aplicación usando postman o una aplicación similar.
 
+### Capturas / Evidencias (Reto 2)
+
+![Hola mundo](/Images/Reto_2%20-%20Hola%20mundo.png)
+
+![Hola sin nombre](/Images/Reto_2%20-%20Hola%20sin%20nombre.png)
+
+![Servidor corriendo](/Images/Reto_2%20-%20Servidor%20corriendo.png)
+
+![Ruta diferente](/Images/Ruta%20diferente.png)
+
 ## Reto 3
 
 - [x] Investigue JWT
