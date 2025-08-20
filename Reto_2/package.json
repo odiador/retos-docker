@@ -1,0 +1,12 @@
+{
+  "name": "reto-2-hono",
+  "version": "1.0.0",
+  "description": "Servidor Hono para Reto 2",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "hono": "^3.0.0"
+  }
+}
