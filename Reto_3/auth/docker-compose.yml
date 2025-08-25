@@ -1,11 +1,19 @@
 version: '3.8'
 services:
-  auth:
-    build: .
+  saludo:
+    build: ../../Reto_2
     ports:
       - "80:80"
     environment:
       - PORT=80
+    restart: unless-stopped
+
+  auth:
+    build: .
+    ports:
+      - "90:90"
+    environment:
+      - PORT=90
       - JWT_SECRET=mi_secreto_super_seguro
       - TOKEN_EXP=1h
     restart: unless-stopped
