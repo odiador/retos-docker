@@ -28,7 +28,8 @@ servidor debe responder de la siguiente forma:
 
 - [x] Investigue JWT
 
-Un JWT, o JSON Web Token, es un estándar abierto ([RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519)) que define una forma compacta y autónoma de transmitir información de forma segura entre dos partes como un objeto JSON. Esta información, conocida como reclamaciones, puede ser verificada y confiable debido a su firma digital. 
+Un JWT, o JSON Web Token, es un estándar abierto ([RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519)) que define una forma compacta y autónoma de transmitir información de forma segura entre dos partes como un objeto JSON. Esta información, conocida como reclamaciones, puede ser verificada y confiable debido a su firma digital.
+
 - [x] Identifique y seleccione una herramienta para el manejo de la autenticación web.
 - [x] Despliegue dicha herramienta junto con la aplicación del reto anterior usando docker compose.
 - [x] Verifique el correcto funcionamiento invocando el servicio de autenticación de la herramienta desplegada y generando un token.

@@ -7,9 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "hono": "^3.0.0",
-    "jsonwebtoken": "^9.0.0",
-    "body-parser": "^1.20.2"
+  "hono": "^4.9.4",
+  "@hono/node-server": "^1.19.0",
+  "jsonwebtoken": "^9.0.2",
+  "body-parser": "^2.2.0"
   }
 }
 
