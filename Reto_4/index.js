@@ -39,24 +39,7 @@ app.get('/saludo', authMiddleware, (c) => {
     return c.json({ error: 'El nombre no coincide con el token' }, 403)
   }
 
-  return c.text(`Hola ${nombre}`, 200)
-})
-
-app.post('/auth/login', async (c) => {
-  try {
-    const body = await c.req.json()
-    const username = body.username
-    if (!username) {
-      return c.json({ error: 'username es requerido' }, 400)
-    }
-
-    const payload = { user: username }
-    const token = jwt.sign(payload, SECRET, { expiresIn: TOKEN_EXP })
-
-    return c.json({ access_token: token })
-  } catch (err) {
-    return c.json({ error: 'peticion invalida' }, 400)
-  }
+  return c.json({ mensaje: `Hola ${nombre}` }, 200)
 })
 
 app.notFound((c) => c.text('Recurso no encontrado', 404))

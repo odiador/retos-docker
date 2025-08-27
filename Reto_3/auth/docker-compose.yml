@@ -1,4 +1,4 @@
-version: 
+version: 3
 services:
   saludo:
     build: ../../Reto_2
