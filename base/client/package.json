@@ -1,0 +1,17 @@
+{
+  "name": "consumer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Consumidor de JWT",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Juan Perdomo",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "fetch": "^1.1.0",
+    "node-fetch": "^3.3.2"
+  }
+}

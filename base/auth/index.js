@@ -1,0 +1,32 @@
+const { serve } = require('@hono/node-server')
+const { Hono } = require('hono')
+const jwt = require('jsonwebtoken')
+
+const SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro'
+const TOKEN_EXP = process.env.TOKEN_EXP || '1h'
+const app = new Hono()
+app.post('/auth/login', async (c) => {
+  try {
+    const body = await c.req.json()
+    const username = body.username
+    if (!username) {
+  console.warn('[auth] Login attempt without username')
+      return c.json({ error: 'username es requerido' }, 400)
+    }
+
+    const payload = { sub: username }
+    const token = jwt.sign(payload, SECRET, { expiresIn: TOKEN_EXP })
+
+    return c.json({ access_token: token })
+  } catch (err) {
+    console.error('[auth] Error processing /auth/login:', err && err.message ? err.message : err)
+    return c.json({ error: 'peticion invalida' }, 400)
+  }
+})
+
+app.notFound((c) => c.text('Recurso no encontrado', 404))
+
+serve({
+  fetch: app.fetch,
+  port: 90
+})
