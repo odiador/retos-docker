@@ -1,0 +1,1187 @@
+openapi: 3.0.3
+info:
+  title: API de Gestión de Usuarios
+  description: |
+    API REST para gestión completa de usuarios incluyendo:
+    - Registro y autenticación
+    - Operaciones CRUD (Create, Read, Update, Delete)
+    - Recuperación de contraseña
+    - Paginación para listado de usuarios
+    
+    Basado en el sistema de autenticación JWT existente usando Hono framework.
+  version: 1.0.0
+  contact:
+    name: Equipo de Desarrollo
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Servidor de desarrollo local
+  - url: https://api.example.com/v1
+    description: Servidor de producción
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ========== AUTENTICACIÓN ==========
+  /auth/register:
+    post:
+      tags:
+        - Autenticación
+      summary: Registrar nuevo usuario
+      description: |
+        Crea una nueva cuenta de usuario en el sistema. El email debe ser único.
+        La contraseña debe cumplir con los requisitos de seguridad mínimos.
+      operationId: registerUser
+      security: []  # Endpoint público
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+                - firstName
+                - lastName
+              properties:
+                username:
+                  type: string
+                  pattern: '^[a-zA-Z0-9_]{3,20}$'
+                  description: Nombre de usuario único (3-20 caracteres, solo letras, números y guiones bajos)
+                  example: "juan_perez"
+                email:
+                  type: string
+                  format: email
+                  description: Dirección de correo electrónico única
+                  example: "juan.perez@example.com"
+                password:
+                  type: string
+                  minLength: 8
+                  description: Contraseña (mínimo 8 caracteres)
+                  example: "MiPassword123!"
+                firstName:
+                  type: string
+                  minLength: 2
+                  maxLength: 50
+                  description: Nombre del usuario
+                  example: "Juan"
+                lastName:
+                  type: string
+                  minLength: 2
+                  maxLength: 50
+                  description: Apellido del usuario
+                  example: "Pérez"
+                phone:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+                  description: Número de teléfono (opcional, formato internacional)
+                  example: "+573001234567"
+            examples:
+              usuario_completo:
+                summary: Usuario con todos los campos
+                value:
+                  username: "juan_perez"
+                  email: "juan.perez@example.com"
+                  password: "MiPassword123!"
+                  firstName: "Juan"
+                  lastName: "Pérez"
+                  phone: "+573001234567"
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Usuario registrado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+                  access_token:
+                    type: string
+                    description: Token JWT para autenticación inmediata
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                datos_invalidos:
+                  summary: Datos requeridos faltantes
+                  value:
+                    error: "Validation failed"
+                    message: "El campo email es requerido"
+                    code: "VALIDATION_ERROR"
+                password_debil:
+                  summary: Contraseña no cumple requisitos
+                  value:
+                    error: "Weak password"
+                    message: "La contraseña debe tener al menos 8 caracteres"
+                    code: "WEAK_PASSWORD"
+        '409':
+          description: Conflicto - Usuario ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                usuario_existente:
+                  summary: Email ya registrado
+                  value:
+                    error: "User already exists"
+                    message: "El email ya está registrado en el sistema"
+                    code: "EMAIL_EXISTS"
+                username_existente:
+                  summary: Username ya en uso
+                  value:
+                    error: "Username taken"
+                    message: "El nombre de usuario ya está en uso"
+                    code: "USERNAME_EXISTS"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      description: |
+        Autentica al usuario y genera un token JWT válido.
+        Acepta email o username como identificador.
+      operationId: loginUser
+      security: []  # Endpoint público
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifier
+                - password
+              properties:
+                identifier:
+                  type: string
+                  description: Email o username del usuario
+                  example: "juan.perez@example.com"
+                password:
+                  type: string
+                  description: Contraseña del usuario
+                  example: "MiPassword123!"
+            examples:
+              login_email:
+                summary: Login con email
+                value:
+                  identifier: "juan.perez@example.com"
+                  password: "MiPassword123!"
+              login_username:
+                summary: Login con username
+                value:
+                  identifier: "juan_perez"
+                  password: "MiPassword123!"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: Token JWT para autenticación
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  token_type:
+                    type: string
+                    example: "Bearer"
+                  expires_in:
+                    type: integer
+                    description: Tiempo de expiración en segundos
+                    example: 3600
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                datos_faltantes:
+                  summary: Credenciales incompletas
+                  value:
+                    error: "Missing credentials"
+                    message: "Identifier y password son requeridos"
+                    code: "MISSING_CREDENTIALS"
+        '401':
+          description: Credenciales incorrectas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                credenciales_incorrectas:
+                  summary: Usuario o contraseña incorrectos
+                  value:
+                    error: "Invalid credentials"
+                    message: "Credenciales incorrectas"
+                    code: "INVALID_CREDENTIALS"
+                cuenta_bloqueada:
+                  summary: Cuenta temporalmente bloqueada
+                  value:
+                    error: "Account locked"
+                    message: "Cuenta bloqueada por múltiples intentos fallidos"
+                    code: "ACCOUNT_LOCKED"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Autenticación
+      summary: Solicitar recuperación de contraseña
+      description: |
+        Envía un email con instrucciones para resetear la contraseña.
+        Genera un token temporal de recuperación.
+      operationId: forgotPassword
+      security: []  # Endpoint público
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email del usuario que solicita recuperación
+                  example: "juan.perez@example.com"
+      responses:
+        '200':
+          description: Solicitud procesada (siempre devuelve 200 por seguridad)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Si el email existe, recibirás instrucciones de recuperación"
+        '400':
+          description: Email inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                email_invalido:
+                  summary: Formato de email incorrecto
+                  value:
+                    error: "Invalid email"
+                    message: "El formato del email es inválido"
+                    code: "INVALID_EMAIL_FORMAT"
+        '429':
+          description: Demasiadas solicitudes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                rate_limit:
+                  summary: Límite de solicitudes excedido
+                  value:
+                    error: "Rate limit exceeded"
+                    message: "Demasiadas solicitudes de recuperación. Intenta en 15 minutos"
+                    code: "RATE_LIMIT_EXCEEDED"
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Autenticación
+      summary: Resetear contraseña
+      description: |
+        Establece una nueva contraseña usando el token de recuperación
+        enviado por email.
+      operationId: resetPassword
+      security: []  # Endpoint público, usa token de recuperación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - newPassword
+              properties:
+                token:
+                  type: string
+                  description: Token de recuperación recibido por email
+                  example: "abc123def456ghi789"
+                newPassword:
+                  type: string
+                  minLength: 8
+                  description: Nueva contraseña (mínimo 8 caracteres)
+                  example: "NuevaPassword456!"
+      responses:
+        '200':
+          description: Contraseña actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Contraseña actualizada exitosamente"
+        '400':
+          description: Token inválido o contraseña débil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                token_invalido:
+                  summary: Token de recuperación inválido
+                  value:
+                    error: "Invalid token"
+                    message: "El token de recuperación es inválido o ha expirado"
+                    code: "INVALID_RESET_TOKEN"
+                password_debil:
+                  summary: Nueva contraseña muy débil
+                  value:
+                    error: "Weak password"
+                    message: "La nueva contraseña debe tener al menos 8 caracteres"
+                    code: "WEAK_PASSWORD"
+        '410':
+          description: Token expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                token_expirado:
+                  summary: Token de recuperación expirado
+                  value:
+                    error: "Token expired"
+                    message: "El token de recuperación ha expirado"
+                    code: "TOKEN_EXPIRED"
+
+  # ========== GESTIÓN DE USUARIOS (CRUD) ==========
+  /users:
+    get:
+      tags:
+        - Usuarios
+      summary: Listar usuarios (con paginación)
+      description: |
+        Obtiene una lista paginada de usuarios del sistema.
+        Solo administradores pueden ver todos los usuarios.
+        Los usuarios regulares solo pueden ver su propia información.
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          description: Número de página (base 1)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: Cantidad de usuarios por página
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: search
+          in: query
+          description: Buscar por nombre, username o email
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            example: "juan"
+        - name: status
+          in: query
+          description: Filtrar por estado del usuario
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+            example: "active"
+        - name: sortBy
+          in: query
+          description: Campo para ordenar
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, username, email, firstName, lastName]
+            default: createdAt
+            example: "username"
+        - name: sortOrder
+          in: query
+          description: Orden de clasificación
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+            example: "asc"
+      responses:
+        '200':
+          description: Lista de usuarios obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserResponse'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permisos para listar usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                sin_permisos:
+                  summary: Usuario sin permisos de administrador
+                  value:
+                    error: "Forbidden"
+                    message: "No tienes permisos para listar usuarios"
+                    code: "INSUFFICIENT_PERMISSIONS"
+
+    post:
+      tags:
+        - Usuarios
+      summary: Crear usuario (solo administradores)
+      description: |
+        Crea un nuevo usuario en el sistema. Solo disponible para administradores.
+        Los usuarios regulares deben usar /auth/register.
+      operationId: createUserAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Usuario creado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permisos de administrador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{userId}:
+    get:
+      tags:
+        - Usuarios
+      summary: Obtener usuario por ID
+      description: |
+        Obtiene la información detallada de un usuario específico.
+        Los usuarios solo pueden ver su propia información.
+        Los administradores pueden ver cualquier usuario.
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          description: ID único del usuario
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permisos para ver este usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                acceso_denegado:
+                  summary: Usuario intentando ver datos de otro
+                  value:
+                    error: "Forbidden"
+                    message: "Solo puedes ver tu propia información"
+                    code: "ACCESS_DENIED"
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                usuario_no_encontrado:
+                  summary: ID de usuario inexistente
+                  value:
+                    error: "User not found"
+                    message: "El usuario solicitado no existe"
+                    code: "USER_NOT_FOUND"
+
+    put:
+      tags:
+        - Usuarios
+      summary: Actualizar usuario completo
+      description: |
+        Actualiza completamente la información de un usuario.
+        Los usuarios solo pueden actualizar su propia información.
+        Los administradores pueden actualizar cualquier usuario.
+      operationId: updateUser
+      parameters:
+        - name: userId
+          in: path
+          description: ID único del usuario
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Usuario actualizado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permisos para actualizar este usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Usuarios
+      summary: Actualizar usuario parcialmente
+      description: |
+        Actualiza campos específicos de un usuario.
+        Los usuarios solo pueden actualizar su propia información.
+        Los administradores pueden actualizar cualquier usuario.
+      operationId: patchUser
+      parameters:
+        - name: userId
+          in: path
+          description: ID único del usuario
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  minLength: 2
+                  maxLength: 50
+                  example: "Juan Carlos"
+                lastName:
+                  type: string
+                  minLength: 2
+                  maxLength: 50
+                  example: "Pérez García"
+                phone:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+                  example: "+573001234567"
+                status:
+                  type: string
+                  enum: [active, inactive, suspended]
+                  description: Solo administradores pueden cambiar status
+                  example: "active"
+              minProperties: 1
+            examples:
+              actualizar_nombre:
+                summary: Actualizar solo el nombre
+                value:
+                  firstName: "Juan Carlos"
+              actualizar_telefono:
+                summary: Actualizar solo el teléfono
+                value:
+                  phone: "+573009876543"
+              suspender_usuario:
+                summary: Suspender usuario (solo admin)
+                value:
+                  status: "suspended"
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Usuario actualizado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                sin_campos:
+                  summary: No se enviaron campos para actualizar
+                  value:
+                    error: "No fields to update"
+                    message: "Debe proporcionar al menos un campo para actualizar"
+                    code: "NO_UPDATE_FIELDS"
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permisos para actualizar este usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Usuarios
+      summary: Eliminar usuario
+      description: |
+        Elimina permanentemente un usuario del sistema.
+        Los usuarios pueden eliminar su propia cuenta.
+        Los administradores pueden eliminar cualquier usuario.
+        Esta acción es irreversible.
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          description: ID único del usuario
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '200':
+          description: Usuario eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Usuario eliminado exitosamente"
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permisos para eliminar este usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                auto_eliminacion_admin:
+                  summary: Admin intentando eliminarse a sí mismo
+                  value:
+                    error: "Cannot delete self"
+                    message: "Los administradores no pueden eliminar su propia cuenta"
+                    code: "CANNOT_DELETE_SELF"
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ========== PERFIL DEL USUARIO ACTUAL ==========
+  /users/me:
+    get:
+      tags:
+        - Perfil
+      summary: Obtener perfil del usuario actual
+      description: |
+        Obtiene la información completa del usuario autenticado actualmente.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Perfil obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Perfil
+      summary: Actualizar perfil completo
+      description: |
+        Actualiza completamente el perfil del usuario autenticado.
+      operationId: updateCurrentUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstName
+                - lastName
+              properties:
+                firstName:
+                  type: string
+                  minLength: 2
+                  maxLength: 50
+                  example: "Juan"
+                lastName:
+                  type: string
+                  minLength: 2
+                  maxLength: 50
+                  example: "Pérez"
+                phone:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+                  example: "+573001234567"
+      responses:
+        '200':
+          description: Perfil actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Perfil actualizado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me/password:
+    put:
+      tags:
+        - Perfil
+      summary: Cambiar contraseña
+      description: |
+        Permite al usuario cambiar su contraseña actual proporcionando
+        la contraseña actual y la nueva contraseña.
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  description: Contraseña actual del usuario
+                  example: "MiPasswordActual123!"
+                newPassword:
+                  type: string
+                  minLength: 8
+                  description: Nueva contraseña (mínimo 8 caracteres)
+                  example: "MiNuevaPassword456!"
+      responses:
+        '200':
+          description: Contraseña cambiada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Contraseña cambiada exitosamente"
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                password_debil:
+                  summary: Nueva contraseña muy débil
+                  value:
+                    error: "Weak password"
+                    message: "La nueva contraseña debe tener al menos 8 caracteres"
+                    code: "WEAK_PASSWORD"
+                misma_password:
+                  summary: Nueva contraseña igual a la actual
+                  value:
+                    error: "Same password"
+                    message: "La nueva contraseña debe ser diferente a la actual"
+                    code: "SAME_PASSWORD"
+        '401':
+          description: Contraseña actual incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                password_incorrecta:
+                  summary: Contraseña actual incorrecta
+                  value:
+                    error: "Invalid current password"
+                    message: "La contraseña actual es incorrecta"
+                    code: "INVALID_CURRENT_PASSWORD"
+
+# ========== COMPONENTES REUTILIZABLES ==========
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT obtenido del endpoint /auth/login.
+        Formato: Authorization: Bearer <token>
+
+  schemas:
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID único del usuario
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          description: Nombre de usuario único
+          example: "juan_perez"
+        email:
+          type: string
+          format: email
+          description: Dirección de correo electrónico
+          example: "juan.perez@example.com"
+        firstName:
+          type: string
+          description: Nombre del usuario
+          example: "Juan"
+        lastName:
+          type: string
+          description: Apellido del usuario
+          example: "Pérez"
+        phone:
+          type: string
+          nullable: true
+          description: Número de teléfono
+          example: "+573001234567"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          description: Estado actual del usuario
+          example: "active"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Rol del usuario en el sistema
+          example: "user"
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha y hora de creación
+          example: "2024-03-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Fecha y hora de última actualización
+          example: "2024-03-15T10:30:00Z"
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Fecha y hora del último inicio de sesión
+          example: "2024-03-15T10:30:00Z"
+
+    UserCreateRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+        - firstName
+        - lastName
+      properties:
+        username:
+          type: string
+          pattern: '^[a-zA-Z0-9_]{3,20}$'
+          description: Nombre de usuario único
+          example: "juan_perez"
+        email:
+          type: string
+          format: email
+          description: Dirección de correo electrónico única
+          example: "juan.perez@example.com"
+        password:
+          type: string
+          minLength: 8
+          description: Contraseña del usuario
+          example: "MiPassword123!"
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Nombre del usuario
+          example: "Juan"
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Apellido del usuario
+          example: "Pérez"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Número de teléfono (opcional)
+          example: "+573001234567"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Rol del usuario (solo para administradores)
+          default: user
+          example: "user"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          description: Estado inicial del usuario
+          default: active
+          example: "active"
+
+    UserUpdateRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Nombre del usuario
+          example: "Juan"
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Apellido del usuario
+          example: "Pérez"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          nullable: true
+          description: Número de teléfono
+          example: "+573001234567"
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          description: Estado del usuario (solo para administradores)
+          example: "active"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Rol del usuario (solo para administradores)
+          example: "user"
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Página actual
+          example: 1
+        limit:
+          type: integer
+          description: Elementos por página
+          example: 20
+        total:
+          type: integer
+          description: Total de elementos
+          example: 150
+        totalPages:
+          type: integer
+          description: Total de páginas
+          example: 8
+        hasNext:
+          type: boolean
+          description: Indica si hay página siguiente
+          example: true
+        hasPrev:
+          type: boolean
+          description: Indica si hay página anterior
+          example: false
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Tipo de error
+          example: "Validation failed"
+        message:
+          type: string
+          description: Descripción detallada del error
+          example: "El campo email es requerido"
+        code:
+          type: string
+          description: Código específico del error
+          example: "VALIDATION_ERROR"
+        details:
+          type: object
+          description: Información adicional sobre el error
+          example:
+            field: "email"
+            value: ""
+            constraint: "required"
+
+tags:
+  - name: Autenticación
+    description: Operaciones de registro, login y recuperación de contraseña
+  - name: Usuarios
+    description: Operaciones CRUD para gestión de usuarios (requiere permisos)
+  - name: Perfil
+    description: Operaciones para gestionar el perfil del usuario autenticado
