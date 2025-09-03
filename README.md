@@ -33,7 +33,9 @@ datos.
 Desarrolle los métodos que diseño para su API, tenga en cuenta:
 
 - El método de login de usuario, debe generar como respuesta un token o respuestas con los errores correspondiente.
+![alt text](image-1.png)
 - Proteja los métodos sensibles como por el ejemplo los de actualización, para que dichos métodos sean realizados por un usuario autenticado y lo haga solo sobre sus propios datos.
+![alt text](image-2.png)
 - No olvide tener un método que permita recuperar la clave de un usuario que la ha perdido.
 
 ## Reto 4

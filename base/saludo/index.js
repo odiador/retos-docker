@@ -13,8 +13,13 @@ const authMiddleware = async (c, next) => {
   }
 
   const parts = authHeader.split(' ')
-  if (parts.length !== 2 || parts[0] !== 'JWT') {
-    return c.json({ error: 'Formato de token invalido. Se espera: Authorization: JWT <token>' }, 401)
+  if (parts.length !== 2) {
+    return c.json({ error: 'Formato de Authorization invalido. Se espera: Authorization: Bearer <token> (o JWT <token>)' }, 401)
+  }
+
+  const scheme = parts[0]
+  if (scheme !== 'JWT' && scheme !== 'Bearer') {
+    return c.json({ error: 'Formato de token invalido. Se espera: Authorization: Bearer <token> (o JWT <token>)' }, 401)
   }
 
   const token = parts[1]

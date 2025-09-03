@@ -28,7 +28,7 @@ services:
       - JWT_SECRET=${jwt_secret}
       - TOKEN_EXP=${token_exp}
       - DB_HOST=db
-      - DB_PORT=5432
+      - DB_PORT=${port}
       - DB_NAME=${database}
       - DB_USER=${username}
       - DB_PASS=${password}
