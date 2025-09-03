@@ -21,6 +21,7 @@ Usando Open Api, diseñe un conjunto de operaciones REST que le permitan gestion
 
 - Diseñe la información a almacenar para su API de Autenticación.
 - Seleccione el motor de base de datos que desea usar y desplieguelo usando docker-compose.
+![alt text](image.png)
 - Verifique el correcto despliegue y configuración de su sistema de almacenamiento de
 datos.
 - Cree una aplicación en el lenguaje de programación de su preferencia capaz de interactuar con la base de datos creada.
