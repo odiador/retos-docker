@@ -189,6 +189,63 @@ app.put('/users/me/password', authMw, async (c) => {
   }
 })
 
+// Admin: list users with pagination
+app.get('/users', authMw, async (c) => {
+  try {
+    const q = c.req.query()
+    const page = Math.max(1, parseInt(q.page || '1', 10))
+    const limit = Math.min(100, Math.max(1, parseInt(q.limit || '25', 10)))
+    const offset = (page - 1) * limit
+    const search = q.search || null
+    const status = q.status || null
+    const sortBy = q.sortBy || 'created_at'
+    const sortOrder = (q.sortOrder || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
+
+    // admin check
+    const requester = c.get('user')
+    if (!requester || !requester.uid) return c.json({ error: 'No autenticado' }, 401)
+    const me = await db.query(`SELECT role FROM ${SCHEMA}.users WHERE id = $1 LIMIT 1`, [requester.uid])
+    if (me.rows.length === 0) return c.json({ error: 'Usuario no encontrado' }, 404)
+    if (me.rows[0].role !== 'admin') return c.json({ error: 'Acceso denegado' }, 403)
+
+    // Build where clauses
+    const where = []
+    const params = []
+    let idx = 1
+    if (search) {
+      where.push(`(username ILIKE $${idx} OR email ILIKE $${idx})`)
+      params.push(`%${search}%`)
+      idx++
+    }
+    if (status) {
+      where.push(`status = $${idx}`)
+      params.push(status)
+      idx++
+    }
+
+    const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
+
+    // Validate sortBy allowed columns
+    const allowedSort = ['id', 'username', 'email', 'created_at', 'updated_at', 'last_login_at']
+    const sortCol = allowedSort.includes(sortBy) ? sortBy : 'created_at'
+
+    const totalRes = await db.query(`SELECT COUNT(*) AS total FROM ${SCHEMA}.users ${whereSql}`, params)
+    const total = Number(totalRes.rows[0].total || 0)
+
+    // add pagination params
+    params.push(limit)
+    params.push(offset)
+
+    const sql = `SELECT id, username, email, first_name AS "firstName", last_name AS "lastName", phone, role, status, created_at, updated_at, last_login_at FROM ${SCHEMA}.users ${whereSql} ORDER BY ${sortCol} ${sortOrder} LIMIT $${idx} OFFSET $${idx + 1}`
+    const res = await db.query(sql, params)
+
+    return c.json({ items: res.rows, total, page, limit }, 200)
+  } catch (err) {
+    console.error('[auth] users list error', err && err.message ? err.message : err)
+    return c.json({ error: 'Internal error' }, 500)
+  }
+})
+
 app.notFound((c) => c.text('Recurso no encontrado', 404))
 
 serve({ fetch: app.fetch, port: 90 })
