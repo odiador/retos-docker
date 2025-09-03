@@ -2,76 +2,83 @@ services:
   db:
     image: postgres:16-alpine
     container_name: retos-postgres
+
     environment:
       - POSTGRES_DB=${database}
       - POSTGRES_USER=${username}
       - POSTGRES_PASSWORD=${password}
-    ports:
-      - "5432:5432"
-    volumes:
-      - dbdata:/var/lib/postgresql/data
-      - ../db:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${username} -d ${database}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
-  auth:
-    build: ./auth
-    ports:
-      - "90:90"
-    environment:
-      - PORT=90
-      - JWT_SECRET=${jwt_secret}
-      - TOKEN_EXP=${token_exp}
-      - DB_HOST=db
-      - DB_PORT=${port}
-      - DB_NAME=${database}
-      - DB_USER=${username}
-      - DB_PASS=${password}
-      - DB_SCHEMA=${schema}
-    depends_on:
+    services:
       db:
-        condition: service_healthy
-    restart: unless-stopped
+        image: postgres:16-alpine
+        container_name: retos-postgres
 
-  saludo:
-    build: ./saludo
-    ports:
-      - "80:80"
-    environment:
-      - PORT=80
-      - JWT_SECRET=${jwt_secret}
-      - TOKEN_EXP=${token_exp}
-      - AUTH_URL=http://auth:90
-    depends_on:
-      - auth
-    restart: unless-stopped
+        environment:
+          - POSTGRES_DB=${database}
+          - POSTGRES_USER=${username}
+          - POSTGRES_PASSWORD=${password}
+        ports:
+          - "5432:5432"
+        volumes:
+          - dbdata:/var/lib/postgresql/data
+          - ../db:/docker-entrypoint-initdb.d:ro
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U ${username} -d ${database}"]
+          interval: 5s
+          timeout: 5s
+          retries: 10
+        restart: unless-stopped
 
-  cliente:
-    build: ./client
-    ports:
-      - "5000:5000"
-    environment:
-      - PORT=5000
-      - AUTH_URL=http://auth:90/auth/login
-      - SALUDO_URL=http://saludo/saludo
-    restart: unless-stopped
+      auth:
+        build: ./auth
+        ports:
+          - "90:90"
+        environment:
+          - PORT=90
+          - JWT_SECRET=${jwt_secret}
+          - TOKEN_EXP=${token_exp}
+          - DB_HOST=db
+          - DB_PORT=${port}
+          - DB_NAME=${database}
+          - DB_USER=${username}
+          - DB_PASS=${password}
+          - DB_SCHEMA=${schema}
+        depends_on:
+          db:
+            condition: service_healthy
+        restart: unless-stopped
 
-  front:
-    build: ./front
-    ports:
-      - "${front_port}:3000"
-    environment:
-      - PORT=${front_port}
-      - NEXT_PUBLIC_AUTH_URL=${front_auth_url}
-      - NEXT_PUBLIC_SALUDO_URL=${front_saludo_url}
-    depends_on:
-      - auth
-      - saludo
-    restart: unless-stopped
+      saludo:
+        build: ./saludo
+        ports:
+          - "80:80"
+        environment:
+          - PORT=80
+          - JWT_SECRET=${jwt_secret}
+          - TOKEN_EXP=${token_exp}
+          - AUTH_URL=http://auth:90
+        depends_on:
+          - auth
+        restart: unless-stopped
 
-volumes:
-  dbdata:
+      cliente:
+        build: ./client
+        ports:
+          - "5000:5000"
+        environment:
+          - PORT=5000
+          - AUTH_URL=http://auth:90/auth/login
+          - SALUDO_URL=http://saludo/saludo
+        restart: unless-stopped
+
+      docs:
+        build: ./docs
+        ports:
+          - "8080:8080"
+        environment:
+          - PORT=8080
+        volumes:
+          - ../openapi-users-spec.yaml:/openapi-users-spec.yaml:ro
+        restart: unless-stopped
+
+    volumes:
+      dbdata:

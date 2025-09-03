@@ -8,6 +8,23 @@ const crypto = require('crypto')
 
 const SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro'
 const TOKEN_EXP = process.env.TOKEN_EXP || '1h'
+
+function parseTokenExpToSeconds(exp) {
+  // support formats like '1h', '30m', or numeric seconds
+  if (!exp) return null
+  if (/^\d+$/.test(String(exp))) return Number(exp)
+  const m = String(exp).match(/^(\d+)([smhd])$/)
+  if (!m) return null
+  const n = Number(m[1])
+  const u = m[2]
+  switch (u) {
+    case 's': return n
+    case 'm': return n * 60
+    case 'h': return n * 3600
+    case 'd': return n * 86400
+    default: return null
+  }
+}
 const SCHEMA = process.env.DB_SCHEMA || 'auth'
 
 const app = new Hono()
@@ -35,9 +52,24 @@ app.post('/auth/register', async (c) => {
       [username, email, passwordHash, firstName, lastName]
     )
 
-    const user = insert.rows[0]
-    const token = jwt.sign({ sub: user.username, uid: user.id }, SECRET, { expiresIn: TOKEN_EXP })
-    return c.json({ message: 'User created', user, access_token: token }, 201)
+    const userRow = insert.rows[0]
+    const user = {
+      id: userRow.id,
+      username: userRow.username,
+      email: userRow.email,
+      firstName: userRow.first_name || userRow.firstname || null,
+      lastName: userRow.last_name || userRow.lastname || null,
+      phone: userRow.phone || null,
+      status: userRow.status,
+      role: userRow.role,
+      createdAt: userRow.created_at,
+      updatedAt: userRow.updated_at,
+      lastLoginAt: userRow.last_login_at || null,
+    }
+
+    const token = jwt.sign({ sub: user.username, uid: user.id, role: user.role }, SECRET, { expiresIn: TOKEN_EXP })
+    const expiresIn = parseTokenExpToSeconds(TOKEN_EXP)
+    return c.json({ message: 'Usuario registrado exitosamente', user, access_token: token, token_type: 'Bearer', expires_in: expiresIn }, 201)
   } catch (err) {
     console.error('[auth] register error', err && err.message ? err.message : err)
     return c.json({ error: 'Internal error' }, 500)
@@ -67,8 +99,22 @@ app.post('/auth/login', async (c) => {
     // Update last_login_at
     await db.query(`UPDATE ${SCHEMA}.users SET last_login_at = NOW() WHERE id = $1`, [user.id])
 
-    const token = jwt.sign({ sub: user.username, uid: user.id }, SECRET, { expiresIn: TOKEN_EXP })
-    return c.json({ access_token: token, user: { id: user.id, username: user.username, email: user.email, role: user.role } }, 200)
+    const token = jwt.sign({ sub: user.username, uid: user.id, role: user.role }, SECRET, { expiresIn: TOKEN_EXP })
+    const expiresIn = parseTokenExpToSeconds(TOKEN_EXP)
+    const userOut = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.first_name || null,
+      lastName: user.last_name || null,
+      phone: user.phone || null,
+      role: user.role,
+      status: user.status,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+      lastLoginAt: user.last_login_at || null,
+    }
+    return c.json({ access_token: token, token_type: 'Bearer', expires_in: expiresIn, user: userOut }, 200)
   } catch (err) {
     console.error('[auth] login error', err && err.message ? err.message : err)
     return c.json({ error: 'Internal error' }, 500)
@@ -83,7 +129,7 @@ app.post('/auth/forgot-password', async (c) => {
     if (!email) return c.json({ error: 'Email requerido' }, 400)
 
     const res = await db.query(`SELECT id FROM ${SCHEMA}.users WHERE email = $1 LIMIT 1`, [email])
-    if (res.rows.length > 0) {
+  if (res.rows.length > 0) {
       const userId = res.rows[0].id
       const token = crypto.randomBytes(32).toString('hex')
       // expire in 1 hour
@@ -92,7 +138,7 @@ app.post('/auth/forgot-password', async (c) => {
     }
 
     // Always return 200 to avoid email enumeration
-    return c.json({ message: 'Si el email existe, se ha enviado un token de recuperación' }, 200)
+  return c.json({ message: 'Si el email existe, recibirás instrucciones de recuperación' }, 200)
   } catch (err) {
     console.error('[auth] forgot-password error', err && err.message ? err.message : err)
     return c.json({ error: 'Internal error' }, 500)
