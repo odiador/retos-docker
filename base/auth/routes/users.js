@@ -177,7 +177,7 @@ users.openapi(createRoute({
 
 users.openapi(createRoute({
   method: 'delete',
-  path: '/users/me',
+  path: '/users/delete',
   middleware: [authMw],
   responses: {
     200: { description: 'Cuenta eliminada', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
