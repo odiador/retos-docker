@@ -60,6 +60,7 @@ services:
       - PORT=5000
       - AUTH_URL=http://auth:90/auth/login
       - SALUDO_URL=http://saludo/saludo
+      - API_URL=http://auth:90
     restart: unless-stopped
 volumes:
   dbdata:
