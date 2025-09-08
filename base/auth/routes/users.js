@@ -175,4 +175,21 @@ users.openapi(createRoute({
   return c.json({ items: res.rows, total, page, limit })
 })
 
+users.openapi(createRoute({
+  method: 'delete',
+  path: '/users/me',
+  middleware: [authMw],
+  responses: {
+    200: { description: 'Cuenta eliminada', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
+    401: { description: 'No autenticado' },
+    404: { description: 'Usuario no encontrado' }
+  },
+}), async (c) => {
+  const decoded = c.get('user')
+  if (!decoded || !decoded.uid) return c.json({ error: 'No autenticado' }, 401)
+  const result = await db(`DELETE FROM ${SCHEMA}.users WHERE id=$1 RETURNING id`, [decoded.uid])
+  if (result.rows.length === 0) return c.json({ error: 'Usuario no encontrado' }, 404)
+  return c.json({ message: 'Cuenta eliminada' })
+})
+
 export default users
