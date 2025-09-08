@@ -61,16 +61,5 @@ services:
       - AUTH_URL=http://auth:90/auth/login
       - SALUDO_URL=http://saludo/saludo
     restart: unless-stopped
-
-  docs:
-    build: ./docs
-    ports:
-      - "8080:8080"
-    environment:
-      - PORT=8080
-    volumes:
-      - ../openapi-users-spec.yaml:/openapi-users-spec.yaml:ro
-    restart: unless-stopped
-
 volumes:
   dbdata:
