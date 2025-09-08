@@ -1,8 +1,8 @@
-const jwt = require('jsonwebtoken')
+import jwt from 'jsonwebtoken'
 
 const SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro'
 
-module.exports = async function authMw(c, next) {
+export default async function authMw(c, next) {
   const authHeader = c.req.header('Authorization')
   if (!authHeader) {
     return c.json({ error: 'Falta cabecera Authorization' }, 401)
