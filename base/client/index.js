@@ -37,6 +37,8 @@ app.get("/", (req, res) => {
     <form method="POST" action="/saludar">
       <label>Nombre:</label>
       <input type="text" name="nombre" required />
+      <label>Contraseña:</label>
+      <input type="password" name="password" required />
       <button type="submit">Enviar</button>
     </form>
   `);
@@ -45,6 +47,7 @@ app.get("/", (req, res) => {
 // Ruta que procesa el nombre
 app.post("/saludar", async (req, res) => {
   const nombre = req.body.nombre;
+  const password = req.body.password;
 
   try {
     // 1. Reusar token si ya hay una sesión válida para este nombre
@@ -58,7 +61,7 @@ app.post("/saludar", async (req, res) => {
       const loginResponse = await fetch(AUTH_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: nombre })
+        body: JSON.stringify({ username: nombre, password })
       });
 
       // Validate response before parsing JSON
