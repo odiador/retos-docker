@@ -96,13 +96,13 @@ app.post("/register", async (req, res) => {
 });
 
 app.post("/saludar", async (req, res) => {
-  const nombre = req.body.nombre;
+  const username = req.body.nombre;
   const password = req.body.password;
   try {
     const loginResponse = await fetch(`${AUTH_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre, password })
+      body: JSON.stringify({ username, password })
     });
 
     if (!loginResponse.ok) {
@@ -125,10 +125,10 @@ app.post("/saludar", async (req, res) => {
 
     // Guardar sesión en memoria con fecha de expiración estimada
     const ttlMs = parseExpiryToMs(TOKEN_EXP) || (60 * 60 * 1000) // fallback 1h
-    session = { username: nombre, token: access_token, expiresAt: Date.now() + ttlMs }
+    session = { username: username, token: access_token, expiresAt: Date.now() + ttlMs }
 
     // 2. Invocar saludo
-    const saludoResponse = await fetch(`${SALUDO_URL}?nombre=${nombre}`, {
+    const saludoResponse = await fetch(`${SALUDO_URL}?nombre=${username}`, {
       headers: { "Authorization": `JWT ${access_token}` }
     });
 
