@@ -154,42 +154,86 @@ users.openapi(createRoute({
   path: '/admin/accounts',
   middleware: [authMw],
   request: { query: listQuery },
-  responses: { 200: { description: 'Lista de usuarios', content: { 'application/json': { schema: listResp } } }, 401: { description: 'No autenticado' }, 403: { description: 'Acceso denegado' } },
+  responses: {
+    200: { description: 'Lista de usuarios', content: { 'application/json': { schema: listResp } } },
+    400: { description: 'Parámetros inválidos' },
+    401: { description: 'No autenticado' },
+    403: { description: 'Acceso denegado' },
+    404: { description: 'Usuario no encontrado' },
+    500: { description: 'Error interno del servidor' }
+  },
 }), async (c) => {
-  const decoded = c.get('user')
-  if (!decoded || !decoded.uid) return c.json({ error: 'No autenticado' }, 401)
+  try {
+    const decoded = c.get('user')
+    if (!decoded || !decoded.uid) {
+      return c.json({ error: 'No autenticado' }, 401)
+    }
 
-  // Check admin
-  const me = await db(`SELECT role FROM ${SCHEMA}.users WHERE id=$1 LIMIT 1`, [decoded.uid])
-  if (me.rows.length === 0) return c.json({ error: 'Usuario no encontrado' }, 404)
-  if (me.rows[0].role !== 'admin') return c.json({ error: 'Acceso denegado' }, 403)
+    // Verificar que el usuario sea admin
+    const me = await db(`SELECT role FROM ${SCHEMA}.users WHERE id=$1 LIMIT 1`, [decoded.uid])
+    if (me.rows.length === 0) {
+      return c.json({ error: 'Usuario no encontrado' }, 404)
+    }
+    if (me.rows[0].role !== 'admin') {
+      return c.json({ error: 'Acceso denegado' }, 403)
+    }
 
-  const q = c.req.query()
-  const page = Math.max(1, parseInt(q.page || '1', 10))
-  const limit = Math.min(100, Math.max(1, parseInt(q.limit || '25', 10)))
-  const offset = (page - 1) * limit
-  const search = q.search || null
-  const status = q.status || null
-  const sortBy = q.sortBy || 'created_at'
-  const sortOrder = (q.sortOrder || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
+    // Parámetros de consulta
+    const q = c.req.query()
+    const page = Math.max(1, parseInt(q.page || '1', 10))
+    const limit = Math.min(100, Math.max(1, parseInt(q.limit || '25', 10)))
+    const offset = (page - 1) * limit
+    const search = q.search || null
+    const status = q.status || null
+    const sortBy = q.sortBy || 'created_at'
+    const sortOrder = (q.sortOrder || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
 
-  const allowedSort = ['id', 'username', 'email', 'created_at', 'updated_at', 'last_login_at']
-  const sortCol = allowedSort.includes(sortBy) ? sortBy : 'created_at'
+    const allowedSort = ['id', 'username', 'email', 'created_at', 'updated_at', 'last_login_at']
+    const sortCol = allowedSort.includes(sortBy) ? sortBy : 'created_at'
 
-  const where = []
-  const params = []
-  let idx = 1
-  if (search) { where.push(`(username ILIKE $${idx} OR email ILIKE $${idx})`); params.push(`%${search}%`); idx++ }
-  if (status) { where.push(`status = $${idx}`); params.push(status); idx++ }
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+    // Construcción dinámica de filtros
+    const where = []
+    const params = []
+    let idx = 1
+    if (search) {
+      where.push(`(username ILIKE $${idx} OR email ILIKE $${idx})`)
+      params.push(`%${search}%`)
+      idx++
+    }
+    if (status) {
+      where.push(`status = $${idx}`)
+      params.push(status)
+      idx++
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const totalRes = await db(`SELECT COUNT(*) AS total FROM ${SCHEMA}.users ${whereSql}`, params)
-  const total = Number(totalRes.rows[0].total || 0)
+    // Total de usuarios
+    const totalRes = await db(
+      `SELECT COUNT(*) AS total FROM ${SCHEMA}.users ${whereSql}`,
+      params
+    )
+    const total = Number(totalRes.rows[0].total || 0)
 
-  params.push(limit); params.push(offset)
-  const sql = `SELECT id, username, email, first_name AS "firstName", last_name AS "lastName", phone, role, status, created_at AS "createdAt", updated_at AS "updatedAt", last_login_at AS "lastLoginAt" FROM ${SCHEMA}.users ${whereSql} ORDER BY ${sortCol} ${sortOrder} LIMIT $${idx} OFFSET $${idx + 1}`
-  const res = await db(sql, params)
-  return c.json({ items: res.rows, total, page, limit })
+    // Paginación
+    params.push(limit)
+    params.push(offset)
+    const sql = `
+      SELECT id, username, email, first_name AS "firstName", last_name AS "lastName",
+             phone, role, status, created_at AS "createdAt", updated_at AS "updatedAt",
+             last_login_at AS "lastLoginAt"
+      FROM ${SCHEMA}.users
+      ${whereSql}
+      ORDER BY ${sortCol} ${sortOrder}
+      LIMIT $${idx} OFFSET $${idx + 1}
+    `
+    const res = await db(sql, params)
+
+    return c.json({ items: res.rows, total, page, limit }, 200)
+
+  } catch (error) {
+    console.error('Error en /admin/accounts:', error)
+    return c.json({ error: 'Error interno del servidor' }, 500)
+  }
 })
 
 users.openapi(createRoute({
@@ -197,16 +241,38 @@ users.openapi(createRoute({
   path: '/accounts/me',
   middleware: [authMw],
   responses: {
-    200: { description: 'Cuenta eliminada', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
+    200: {
+      description: 'Cuenta eliminada',
+      content: {
+        'application/json': { schema: z.object({ message: z.string() }) }
+      }
+    },
     401: { description: 'No autenticado' },
-    404: { description: 'Usuario no encontrado' }
+    404: { description: 'Usuario no encontrado' },
+    500: { description: 'Error interno del servidor' }
   },
 }), async (c) => {
   const decoded = c.get('user')
-  if (!decoded || !decoded.uid) return c.json({ error: 'No autenticado' }, 401)
-  const result = await db(`DELETE FROM ${SCHEMA}.users WHERE id=$1 RETURNING id`, [decoded.uid])
-  if (result.rows.length === 0) return c.json({ error: 'Usuario no encontrado' }, 404)
-  return c.json({ message: 'Cuenta eliminada' })
+
+  if (!decoded || !decoded.uid) {
+    return c.json({ error: 'No autenticado' }, 401)
+  }
+
+  try {
+    const result = await db(
+      `DELETE FROM ${SCHEMA}.users WHERE id=$1 RETURNING id`,
+      [decoded.uid]
+    )
+
+    if (result.rows.length === 0) {
+      return c.json({ error: 'Usuario no encontrado' }, 404)
+    }
+
+    return c.json({ message: 'Cuenta eliminada' }, 200)
+  } catch (err) {
+    console.error('Error al eliminar cuenta:', err)
+    return c.json({ error: 'Error interno del servidor' }, 500)
+  }
 })
 
 export default users
