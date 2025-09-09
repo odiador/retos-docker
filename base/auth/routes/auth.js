@@ -12,7 +12,6 @@ const SCHEMA = process.env.DB_SCHEMA || 'auth'
 
 const auth = new OpenAPIHono()
 
-// Shared user sub-schema
 const baseUserSchema = z.object({
   id: z.string(),
   username: z.string(),
@@ -28,8 +27,9 @@ const baseUserSchema = z.object({
 })
 
 /* =====================
-   /auth/register
+  Registrar un nuevo usuario
 ===================== */
+
 const registerBody = z.object({
   username: z.string(),
   email: z.string().email(),
@@ -48,7 +48,7 @@ const registerResp = z.object({
 
 auth.openapi(createRoute({
   method: 'post',
-  path: '/auth/register',
+  path: '/accounts',
   request: { body: { content: { 'application/json': { schema: registerBody } } } },
   responses: { 201: { description: 'Usuario registrado', content: { 'application/json': { schema: registerResp } } }, 409: { description: 'Usuario existente' } },
 }), async (c) => {
@@ -80,7 +80,7 @@ auth.openapi(createRoute({
 })
 
 /* =====================
-   /auth/login
+  Realiza el inicio de sesión, dado el email y la contraseña
 ===================== */
 const loginBody = z.object({
   identifier: z.string(), // username o email
@@ -126,7 +126,7 @@ auth.openapi(createRoute({
 })
 
 /* =====================
-   /auth/forgot-password
+  Enviar el código de validación por email
 ===================== */
 const forgotBody = z.object({
   email: z.string().email(),
@@ -135,7 +135,7 @@ const forgotResp = z.object({ message: z.string() })
 
 auth.openapi(createRoute({
   method: 'post',
-  path: '/auth/forgot-password',
+  path: '/passwords/validation-codes',
   request: { body: { content: { 'application/json': { schema: forgotBody } } } },
   responses: { 200: { description: 'Aceptado', content: { 'application/json': { schema: forgotResp } } } },
 }), async (c) => {
@@ -151,7 +151,7 @@ auth.openapi(createRoute({
 })
 
 /* =====================
-   /auth/reset-password
+  Verificar el código de validación y resetear la contraseña
 ===================== */
 const resetBody = z.object({
   token: z.string(),
@@ -161,7 +161,7 @@ const resetResp = z.object({ message: z.string() })
 
 auth.openapi(createRoute({
   method: 'post',
-  path: '/auth/reset-password',
+  path: '/passwords',
   request: { body: { content: { 'application/json': { schema: resetBody } } } },
   responses: { 200: { description: 'Contraseña reseteada', content: { 'application/json': { schema: resetResp } } }, 410: { description: 'Token inválido o expirado' } },
 }), async (c) => {

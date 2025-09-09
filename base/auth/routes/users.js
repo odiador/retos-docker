@@ -22,22 +22,39 @@ const userSchema = z.object({
   lastLoginAt: z.string().nullable().optional(),
 })
 
-/* =====================
-   GET /users/me
-===================== */
 users.openapi(createRoute({
   method: 'get',
-  path: '/users/me',
+  path: '/accounts/{username}',
   middleware: [authMw],
+  request: {
+    params: z.object({
+      username: z.string()
+        .min(3, 'Username debe tener al menos 3 caracteres')
+        .max(20, 'Username no puede tener más de 20 caracteres')
+    })
+  },
   responses: {
     200: { description: 'Perfil del usuario', content: { 'application/json': { schema: z.object({ user: userSchema }) } } },
     401: { description: 'No autenticado' },
+    403: { description: 'No autorizado para ver este usuario' },
     404: { description: 'Usuario no encontrado' }
   },
 }), async (c) => {
   const decoded = c.get('user')
-  if (!decoded || !decoded.uid) return c.json({ error: 'No autenticado' }, 401)
-  const result = await db(`SELECT id, username, email, first_name AS "firstName", last_name AS "lastName", phone, role, status, created_at AS "createdAt", updated_at AS "updatedAt", last_login_at AS "lastLoginAt" FROM ${SCHEMA}.users WHERE id=$1 LIMIT 1`, [decoded.uid])
+  const { username } = c.req.valid('param')
+  
+  console.log('Usuario decodificado:', decoded)
+  console.log('Username del parámetro:', username)
+ 
+  if (!decoded || !decoded.uid) {
+    return c.json({ error: 'No autenticado' }, 401)
+  }
+ 
+  if (decoded.sub !== username) {
+    console.log(`username no coincide: ${decoded.sub} !== ${username}`)
+    return c.json({ error: 'No autorizado' }, 403)
+  }
+  const result = await db(`SELECT id, username, email, first_name AS "firstName", last_name AS "lastName", phone, role, status, created_at AS "createdAt", updated_at AS "updatedAt", last_login_at AS "lastLoginAt" FROM ${SCHEMA}.users WHERE username=$1 LIMIT 1`, [username])
   if (result.rows.length === 0) return c.json({ error: 'Usuario no encontrado' }, 404)
   return c.json({ user: result.rows[0] })
 })
@@ -53,7 +70,7 @@ const patchBody = z.object({
 
 users.openapi(createRoute({
   method: 'patch',
-  path: '/users/me',
+  path: '/accounts/me',
   middleware: [authMw],
   request: { body: { content: { 'application/json': { schema: patchBody } } } },
   responses: {
@@ -89,7 +106,7 @@ const changePassBody = z.object({
 
 users.openapi(createRoute({
   method: 'put',
-  path: '/users/me/password',
+  path: '/accounts/me/password',
   middleware: [authMw],
   request: { body: { content: { 'application/json': { schema: changePassBody } } } },
   responses: {
@@ -134,7 +151,7 @@ const listResp = z.object({
 
 users.openapi(createRoute({
   method: 'get',
-  path: '/users',
+  path: '/admin/accounts',
   middleware: [authMw],
   request: { query: listQuery },
   responses: { 200: { description: 'Lista de usuarios', content: { 'application/json': { schema: listResp } } }, 401: { description: 'No autenticado' }, 403: { description: 'Acceso denegado' } },
@@ -177,7 +194,7 @@ users.openapi(createRoute({
 
 users.openapi(createRoute({
   method: 'delete',
-  path: '/users/delete',
+  path: '/accounts/me',
   middleware: [authMw],
   responses: {
     200: { description: 'Cuenta eliminada', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
