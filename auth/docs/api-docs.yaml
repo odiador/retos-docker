@@ -1,0 +1,1069 @@
+openapi: 3.0.0
+info:
+  title: Microservicios
+  version: 1.0.0
+  description: Reto numero 2 de microservicios
+servers:
+  - url: http://localhost:90
+    description: Local
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: Authentication and registration endpoints
+  - name: Users
+    description: User management endpoints
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 1
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+      required:
+        - username
+        - email
+        - password
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          minLength: 1
+      required:
+        - username
+        - password
+    ValidationError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "ZodError"
+            message:
+              type: string
+              example: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"password\"\n    ],\n    \"message\": \"La contraseña es obligatoria\"\n  }\n]"
+  parameters: {}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      description: Endpoint para verificar el estado de salud del servicio
+      security: []
+      responses:
+        '200':
+          description: Health check exitoso - El servicio está funcionando correctamente
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Respuesta simple de estado
+  /accounts:
+    post:
+      tags:
+        - Authentication
+      description: Registrar un nuevo usuario con nombre de usuario, correo electrónico, contraseña, nombre y apellido.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: ^[a-zA-Z0-9_]+$
+                  description: Nombre de usuario único (3-20 caracteres)
+                email:
+                  type: string
+                  format: email
+                  description: Correo electrónico válido
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 100
+                  description: Contraseña segura (mínimo 8 caracteres)
+                firstName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: Nombre del usuario
+                lastName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: Apellido del usuario
+              required:
+                - username
+                - email
+                - password
+                - firstName
+                - lastName
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación del registro
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: ID único del usuario
+                      username:
+                        type: string
+                        minLength: 3
+                        maxLength: 20
+                        description: Nombre de usuario único
+                      email:
+                        type: string
+                        format: email
+                        description: Correo electrónico del usuario
+                      firstName:
+                        type: string
+                        nullable: true
+                        description: Nombre del usuario
+                      lastName:
+                        type: string
+                        nullable: true
+                        description: Apellido del usuario
+                      phone:
+                        type: string
+                        nullable: true
+                        description: Número de teléfono
+                      role:
+                        type: string
+                        description: Rol del usuario en el sistema
+                      status:
+                        type: string
+                        description: Estado de la cuenta del usuario
+                      createdAt:
+                        type: string
+                        description: Fecha de creación de la cuenta
+                      updatedAt:
+                        type: string
+                        nullable: true
+                        description: Fecha de última actualización
+                      lastLoginAt:
+                        type: string
+                        nullable: true
+                        description: Fecha del último inicio de sesión
+                    required:
+                      - id
+                      - username
+                      - email
+                      - role
+                      - status
+                    description: Información del usuario registrado
+                  access_token:
+                    type: string
+                    description: Token de acceso JWT
+                  token_type:
+                    type: string
+                    enum:
+                      - Bearer
+                    description: Tipo de token de autenticación
+                  expires_in:
+                    type: number
+                    nullable: true
+                    description: Tiempo de expiración del token en segundos
+                required:
+                  - message
+                  - user
+                  - access_token
+                  - token_type
+                  - expires_in
+                description: Respuesta con la información del usuario registrado y token de acceso
+        '400':
+          description: Validation error - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                password_required:
+                  summary: Password is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"password\"\n    ],\n    \"message\": \"La contraseña es obligatoria\"\n  }\n]"
+        '409':
+          description: Usuario existente - El nombre de usuario o email ya están registrados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+    get:
+      tags:
+        - Users
+      description: Obtener una lista paginada de usuarios con opciones de búsqueda y filtrado. Requiere autenticación.
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+            pattern: ^\d+$
+            description: Número de página (empieza en 1)
+          required: false
+          description: Número de página (empieza en 1)
+          name: page
+          in: query
+        - schema:
+            type: string
+            pattern: ^\d+$
+            description: Número de elementos por página (máximo 100)
+          required: false
+          description: Número de elementos por página (máximo 100)
+          name: limit
+          in: query
+        - schema:
+            type: string
+            description: Término de búsqueda para filtrar usuarios
+          required: false
+          description: Término de búsqueda para filtrar usuarios
+          name: search
+          in: query
+        - schema:
+            type: string
+            description: Filtrar por estado del usuario
+          required: false
+          description: Filtrar por estado del usuario
+          name: status
+          in: query
+        - schema:
+            type: string
+            description: Campo por el cual ordenar los resultados
+          required: false
+          description: Campo por el cual ordenar los resultados
+          name: sortBy
+          in: query
+        - schema:
+            type: string
+            pattern: ^(asc|desc)$/i
+            description: Orden de clasificación (asc o desc)
+          required: false
+          description: Orden de clasificación (asc o desc)
+          name: sortOrder
+          in: query
+      responses:
+        '200':
+          description: Lista de usuarios obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: ID único del usuario
+                        username:
+                          type: string
+                          minLength: 3
+                          maxLength: 20
+                          description: Nombre de usuario único
+                        email:
+                          type: string
+                          format: email
+                          description: Correo electrónico del usuario
+                        firstName:
+                          type: string
+                          nullable: true
+                          description: Nombre del usuario
+                        lastName:
+                          type: string
+                          nullable: true
+                          description: Apellido del usuario
+                        phone:
+                          type: string
+                          nullable: true
+                          description: Número de teléfono
+                        role:
+                          type: string
+                          description: Rol del usuario en el sistema
+                        status:
+                          type: string
+                          description: Estado de la cuenta del usuario
+                        createdAt:
+                          type: string
+                          description: Fecha de creación de la cuenta
+                        updatedAt:
+                          type: string
+                          nullable: true
+                          description: Fecha de última actualización
+                        lastLoginAt:
+                          type: string
+                          nullable: true
+                          description: Fecha del último inicio de sesión
+                      required:
+                        - id
+                        - username
+                        - email
+                        - role
+                        - status
+                      description: Información completa del usuario
+                    description: Lista de usuarios
+                  total:
+                    type: number
+                    description: Total de usuarios encontrados
+                  page:
+                    type: number
+                    description: Página actual
+                  limit:
+                    type: number
+                    description: Límite de elementos por página
+                required:
+                  - items
+                  - total
+                  - page
+                  - limit
+                description: Respuesta con la lista paginada de usuarios
+        '400':
+          description: Validation error - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                invalid_parameters:
+                  summary: Invalid pagination parameters
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"invalid_type\",\n    \"expected\": \"number\",\n    \"received\": \"string\",\n    \"path\": [\n      \"page\"\n    ],\n    \"message\": \"El parámetro page debe ser un número\"\n  }\n]"
+        '401':
+          description: No autenticado - Token de acceso requerido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '403':
+          description: Acceso denegado - Se requieren permisos de administrador
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+  /sessions:
+    post:
+      tags:
+        - Authentication
+      description: Iniciar sesión con nombre de usuario o correo electrónico y contraseña para obtener un token JWT.
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier:
+                  type: string
+                  minLength: 1
+                  description: Nombre de usuario o correo electrónico
+                password:
+                  type: string
+                  minLength: 1
+                  description: Contraseña del usuario
+              required:
+                - identifier
+                - password
+      responses:
+        '200':
+          description: Sesión creada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: Token de acceso JWT para autenticación
+                  token_type:
+                    type: string
+                    enum:
+                      - Bearer
+                    description: Tipo de token de autenticación
+                  expires_in:
+                    type: number
+                    nullable: true
+                    description: Tiempo de expiración del token en segundos
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: ID único del usuario
+                      username:
+                        type: string
+                        minLength: 3
+                        maxLength: 20
+                        description: Nombre de usuario único
+                      email:
+                        type: string
+                        format: email
+                        description: Correo electrónico del usuario
+                      firstName:
+                        type: string
+                        nullable: true
+                        description: Nombre del usuario
+                      lastName:
+                        type: string
+                        nullable: true
+                        description: Apellido del usuario
+                      phone:
+                        type: string
+                        nullable: true
+                        description: Número de teléfono
+                      role:
+                        type: string
+                        description: Rol del usuario en el sistema
+                      status:
+                        type: string
+                        description: Estado de la cuenta del usuario
+                      createdAt:
+                        type: string
+                        description: Fecha de creación de la cuenta
+                      updatedAt:
+                        type: string
+                        nullable: true
+                        description: Fecha de última actualización
+                      lastLoginAt:
+                        type: string
+                        nullable: true
+                        description: Fecha del último inicio de sesión
+                    required:
+                      - id
+                      - username
+                      - email
+                      - role
+                      - status
+                    description: Información del usuario autenticado
+                required:
+                  - access_token
+                  - token_type
+                  - expires_in
+                  - user
+                description: Respuesta con token de acceso y información del usuario
+        '400':
+          description: Validation error - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                username_required:
+                  summary: Username is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"username\"\n    ],\n    \"message\": \"El nombre de usuario es obligatorio\"\n  }\n]"
+        '401':
+          description: Credenciales inválidas - Usuario o contraseña incorrectos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+  /accounts/{username}:
+    get:
+      tags:
+        - Users
+      description: Obtener el perfil de un usuario específico por su nombre de usuario. Requiere autenticación.
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 3
+            maxLength: 20
+            pattern: ^[a-zA-Z0-9_]+$
+            description: Nombre de usuario del perfil a consultar
+          required: true
+          description: Nombre de usuario del perfil a consultar
+          name: username
+          in: path
+      responses:
+        '200':
+          description: Perfil del usuario obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: ID único del usuario
+                      username:
+                        type: string
+                        minLength: 3
+                        maxLength: 20
+                        description: Nombre de usuario único
+                      email:
+                        type: string
+                        format: email
+                        description: Correo electrónico del usuario
+                      firstName:
+                        type: string
+                        nullable: true
+                        description: Nombre del usuario
+                      lastName:
+                        type: string
+                        nullable: true
+                        description: Apellido del usuario
+                      phone:
+                        type: string
+                        nullable: true
+                        description: Número de teléfono
+                      role:
+                        type: string
+                        description: Rol del usuario en el sistema
+                      status:
+                        type: string
+                        description: Estado de la cuenta del usuario
+                      createdAt:
+                        type: string
+                        description: Fecha de creación de la cuenta
+                      updatedAt:
+                        type: string
+                        nullable: true
+                        description: Fecha de última actualización
+                      lastLoginAt:
+                        type: string
+                        nullable: true
+                        description: Fecha del último inicio de sesión
+                    required:
+                      - id
+                      - username
+                      - email
+                      - role
+                      - status
+                    description: Información completa del usuario
+                required:
+                  - user
+                description: Respuesta con la información del perfil del usuario
+        '401':
+          description: No autenticado - Token de acceso requerido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '403':
+          description: No autorizado para ver este perfil de usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+    patch:
+      tags:
+        - Users
+      description: Actualizar el perfil de un usuario específico (nombre, apellido, teléfono). Requiere autenticación.
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 3
+            maxLength: 20
+            pattern: ^[a-zA-Z0-9_]+$
+            description: Nombre de usuario del perfil a actualizar
+          required: true
+          description: Nombre de usuario del perfil a actualizar
+          name: username
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: Nuevo nombre del usuario
+                lastName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: Nuevo apellido del usuario
+                phone:
+                  type: string
+                  minLength: 1
+                  maxLength: 20
+                  description: Nuevo número de teléfono
+      responses:
+        '200':
+          description: Perfil de usuario actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: ID único del usuario
+                      username:
+                        type: string
+                        minLength: 3
+                        maxLength: 20
+                        description: Nombre de usuario único
+                      email:
+                        type: string
+                        format: email
+                        description: Correo electrónico del usuario
+                      firstName:
+                        type: string
+                        nullable: true
+                        description: Nombre del usuario
+                      lastName:
+                        type: string
+                        nullable: true
+                        description: Apellido del usuario
+                      phone:
+                        type: string
+                        nullable: true
+                        description: Número de teléfono
+                      role:
+                        type: string
+                        description: Rol del usuario en el sistema
+                      status:
+                        type: string
+                        description: Estado de la cuenta del usuario
+                      createdAt:
+                        type: string
+                        description: Fecha de creación de la cuenta
+                      updatedAt:
+                        type: string
+                        nullable: true
+                        description: Fecha de última actualización
+                      lastLoginAt:
+                        type: string
+                        nullable: true
+                        description: Fecha del último inicio de sesión
+                    required:
+                      - id
+                      - username
+                      - email
+                      - role
+                      - status
+                    description: Información completa del usuario
+                required:
+                  - user
+                description: Respuesta con la información actualizada del perfil
+        '400':
+          description: Validation error - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                firstName_required:
+                  summary: First name is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"firstName\"\n    ],\n    \"message\": \"El nombre es obligatorio\"\n  }\n]"
+        '401':
+          description: No autenticado - Token de acceso requerido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '403':
+          description: No autorizado para actualizar este perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+    put:
+      tags:
+        - Users
+      description: Cambiar la contraseña de un usuario específico. Requiere autenticación.
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 3
+            maxLength: 20
+            pattern: ^[a-zA-Z0-9_]+$
+            description: Nombre de usuario cuya contraseña se va a cambiar
+          required: true
+          description: Nombre de usuario cuya contraseña se va a cambiar
+          name: username
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentPassword:
+                  type: string
+                  minLength: 1
+                  description: Contraseña actual del usuario
+                newPassword:
+                  type: string
+                  minLength: 8
+                  maxLength: 100
+                  description: Nueva contraseña segura
+              required:
+                - currentPassword
+                - newPassword
+      responses:
+        '200':
+          description: Contraseña cambiada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación del cambio de contraseña
+                required:
+                  - message
+        '400':
+          description: Validation error - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                currentPassword_required:
+                  summary: Current password is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"currentPassword\"\n    ],\n    \"message\": \"La contraseña actual es obligatoria\"\n  }\n]"
+        '401':
+          description: No autenticado - Token de acceso requerido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '403':
+          description: No autorizado para cambiar esta contraseña
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+    delete:
+      tags:
+        - Users
+      description: Eliminar la cuenta de un usuario específico. Requiere autenticación.
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 3
+            maxLength: 20
+            description: Nombre de usuario del usuario objetivo
+          required: true
+          description: Nombre de usuario del usuario objetivo
+          name: username
+          in: path
+      responses:
+        '200':
+          description: Cuenta de usuario eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación de eliminación de cuenta
+                required:
+                  - message
+        '401':
+          description: No autenticado - Token de acceso requerido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '403':
+          description: No autorizado para eliminar esta cuenta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Mensaje descriptivo del error
+                required:
+                  - error
+                description: Respuesta de error genérica
