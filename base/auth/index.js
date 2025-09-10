@@ -6,6 +6,12 @@ import users from './routes/users.js'
 import { swaggerUI } from '@hono/swagger-ui'
 import db from './db.js'
 import bcrypt from 'bcryptjs'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 async function ensureAdminUser() {
   const email = 'admin@gmail.com'
@@ -31,31 +37,18 @@ app.route('/', health)
 app.route('/', auth)
 app.route('/', users)
 
-// main.js (fragmento)
-app.doc('/doc', {
-  openapi: '3.1.0', // recomendado
-  info: {
-    title: 'Microservicios',
-    version: '1.0.0',
-    description: 'Reto numero 2 de microservicios',
-  },
-  servers: [{ url: 'http://localhost:90', description: 'Local' }],
-  tags: [
-    { name: 'Health', description: 'Health check endpoints' },
-    { name: 'Authentication', description: 'Authentication and registration endpoints' },
-    { name: 'Users', description: 'User management endpoints' }
-  ],
-  components: {
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      }
-    }
-  },
-  // Seguridad global por defecto (las rutas con security: [] la anulan)
-  security: [{ bearerAuth: [] }]
+// Servir la documentación OpenAPI desde el archivo YAML estático
+app.get('/doc', async (c) => {
+  try {
+    const yamlPath = path.join(__dirname, 'docs', 'api-docs.yaml')
+    const yamlContent = fs.readFileSync(yamlPath, 'utf8')
+    return c.text(yamlContent, 200, {
+      'Content-Type': 'application/yaml'
+    })
+  } catch (error) {
+    console.error('Error al servir la documentación:', error)
+    return c.text('Error al cargar la documentación', 500)
+  }
 })
 
 
