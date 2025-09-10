@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   username CITEXT NOT NULL UNIQUE,
   email CITEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
+  password TEXT NOT NULL,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
   phone TEXT,

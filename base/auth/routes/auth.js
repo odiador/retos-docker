@@ -72,7 +72,7 @@ auth.openapi(createRoute({
     const passwordHash = await bcrypt.hash(password, 10)
 
     const insert = await query(
-      `INSERT INTO ${SCHEMA}.users (username,email,password_hash,first_name,last_name)
+      `INSERT INTO ${SCHEMA}.users (username,email,password,first_name,last_name)
        VALUES ($1,$2,$3,$4,$5)
        RETURNING id,username,email,first_name,last_name,phone,role,status,created_at,updated_at,last_login_at`,
       [username, email, passwordHash, firstName, lastName]
@@ -164,7 +164,7 @@ auth.openapi(createRoute({
 
     // Buscar usuario por username o email
     const result = await query(
-      `SELECT id,username,email,password_hash,first_name,last_name,phone,role,status,created_at,updated_at,last_login_at 
+      `SELECT id,username,email,password,first_name,last_name,phone,role,status,created_at,updated_at,last_login_at 
        FROM ${SCHEMA}.users 
        WHERE username=$1 OR email=$1 
        LIMIT 1`,
@@ -178,7 +178,7 @@ auth.openapi(createRoute({
     const row = result.rows[0]
 
     // Comparar contraseñas
-    const match = await bcrypt.compare(password, row.password_hash)
+    const match = await bcrypt.compare(password, row.password)
     if (!match) {
       return c.json({ error: 'Contraseña incorrecta' }, 401)
     }

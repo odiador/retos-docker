@@ -14,7 +14,82 @@ tags:
   - name: Users
     description: User management endpoints
 components:
-  schemas: {}
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 1
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+      required:
+        - username
+        - email
+        - password
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          minLength: 1
+      required:
+        - username
+        - password
+    ValidationError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "ZodError"
+            message:
+              type: string
+              example: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"password\"\n    ],\n    \"message\": \"La contraseña es obligatoria\"\n  }\n]"
   parameters: {}
   securitySchemes:
     bearerAuth:
@@ -29,6 +104,7 @@ paths:
     get:
       tags:
         - Health
+      description: Endpoint para verificar el estado de salud del servicio
       security: []
       responses:
         '200':
@@ -42,6 +118,7 @@ paths:
     post:
       tags:
         - Authentication
+      description: Registrar un nuevo usuario con nombre de usuario, correo electrónico, contraseña, nombre y apellido.
       security: []
       requestBody:
         content:
@@ -162,37 +239,19 @@ paths:
                   - expires_in
                 description: Respuesta con la información del usuario registrado y token de acceso
         '400':
-          description: Datos inválidos - Verifique los campos obligatorios y formatos
+          description: Validation error - Invalid input data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error de validación
-                  details:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        field:
-                          type: string
-                          description: Campo que causó el error
-                        message:
-                          type: string
-                          description: Mensaje específico del error de validación
-                        code:
-                          type: string
-                          description: Código del error de validación
-                      required:
-                        - field
-                        - message
-                    description: Detalles específicos de validación
-                required:
-                  - error
-                  - details
-                description: Respuesta de error de validación con detalles estructurados
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                password_required:
+                  summary: Password is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"password\"\n    ],\n    \"message\": \"La contraseña es obligatoria\"\n  }\n]"
         '409':
           description: Usuario existente - El nombre de usuario o email ya están registrados
           content:
@@ -222,6 +281,7 @@ paths:
     get:
       tags:
         - Users
+      description: Obtener una lista paginada de usuarios con opciones de búsqueda y filtrado. Requiere autenticación.
       security:
         - bearerAuth: []
       parameters:
@@ -348,37 +408,19 @@ paths:
                   - limit
                 description: Respuesta con la lista paginada de usuarios
         '400':
-          description: Parámetros inválidos - Verifique los parámetros de paginación y filtros
+          description: Validation error - Invalid input data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error de validación
-                  details:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        field:
-                          type: string
-                          description: Campo que causó el error
-                        message:
-                          type: string
-                          description: Mensaje específico del error de validación
-                        code:
-                          type: string
-                          description: Código del error de validación
-                      required:
-                        - field
-                        - message
-                    description: Detalles específicos de validación
-                required:
-                  - error
-                  - details
-                description: Respuesta de error de validación con detalles estructurados
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                invalid_parameters:
+                  summary: Invalid pagination parameters
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"invalid_type\",\n    \"expected\": \"number\",\n    \"received\": \"string\",\n    \"path\": [\n      \"page\"\n    ],\n    \"message\": \"El parámetro page debe ser un número\"\n  }\n]"
         '401':
           description: No autenticado - Token de acceso requerido
           content:
@@ -435,6 +477,7 @@ paths:
     post:
       tags:
         - Authentication
+      description: Iniciar sesión con nombre de usuario o correo electrónico y contraseña para obtener un token JWT.
       security: []
       requestBody:
         content:
@@ -531,96 +574,21 @@ paths:
                   - user
                 description: Respuesta con token de acceso y información del usuario
         '400':
-          description: Datos inválidos - Verifique el identificador y contraseña
+          description: Validation error - Invalid input data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error de validación
-                  details:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        field:
-                          type: string
-                          description: Campo que causó el error
-                        message:
-                          type: string
-                          description: Mensaje específico del error de validación
-                        code:
-                          type: string
-                          description: Código del error de validación
-                      required:
-                        - field
-                        - message
-                    description: Detalles específicos de validación
-                required:
-                  - error
-                  - details
-                description: Respuesta de error de validación con detalles estructurados
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                username_required:
+                  summary: Username is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"username\"\n    ],\n    \"message\": \"El nombre de usuario es obligatorio\"\n  }\n]"
         '401':
           description: Credenciales inválidas - Usuario o contraseña incorrectos
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error
-                required:
-                  - error
-                description: Respuesta de error genérica
-        '500':
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error
-                required:
-                  - error
-                description: Respuesta de error genérica
-  /codes:
-    post:
-      tags:
-        - Authentication
-      security: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                  description: Correo electrónico donde enviar el código
-              required:
-                - email
-      responses:
-        '200':
-          description: Código enviado exitosamente
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    description: Mensaje de confirmación del envío del código
-                required:
-                  - message
-                description: Respuesta con mensaje de confirmación del envío del código
-        '400':
-          description: Datos inválidos - Verifique el formato del email
           content:
             application/json:
               schema:
@@ -649,6 +617,7 @@ paths:
     get:
       tags:
         - Users
+      description: Obtener el perfil de un usuario específico por su nombre de usuario. Requiere autenticación.
       security:
         - bearerAuth: []
       parameters:
@@ -766,6 +735,7 @@ paths:
     patch:
       tags:
         - Users
+      description: Actualizar el perfil de un usuario específico (nombre, apellido, teléfono). Requiere autenticación.
       security:
         - bearerAuth: []
       parameters:
@@ -863,37 +833,19 @@ paths:
                   - user
                 description: Respuesta con la información actualizada del perfil
         '400':
-          description: Sin cambios - Los datos proporcionados son idénticos a los actuales
+          description: Validation error - Invalid input data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error de validación
-                  details:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        field:
-                          type: string
-                          description: Campo que causó el error
-                        message:
-                          type: string
-                          description: Mensaje específico del error de validación
-                        code:
-                          type: string
-                          description: Código del error de validación
-                      required:
-                        - field
-                        - message
-                    description: Detalles específicos de validación
-                required:
-                  - error
-                  - details
-                description: Respuesta de error de validación con detalles estructurados
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                firstName_required:
+                  summary: First name is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"firstName\"\n    ],\n    \"message\": \"El nombre es obligatorio\"\n  }\n]"
         '401':
           description: No autenticado - Token de acceso requerido
           content:
@@ -936,6 +888,7 @@ paths:
     put:
       tags:
         - Users
+      description: Cambiar la contraseña de un usuario específico. Requiere autenticación.
       security:
         - bearerAuth: []
       parameters:
@@ -981,37 +934,19 @@ paths:
                 required:
                   - message
         '400':
-          description: Validación fallida - Verifique la contraseña actual y la nueva
+          description: Validation error - Invalid input data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Mensaje descriptivo del error de validación
-                  details:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        field:
-                          type: string
-                          description: Campo que causó el error
-                        message:
-                          type: string
-                          description: Mensaje específico del error de validación
-                        code:
-                          type: string
-                          description: Código del error de validación
-                      required:
-                        - field
-                        - message
-                    description: Detalles específicos de validación
-                required:
-                  - error
-                  - details
-                description: Respuesta de error de validación con detalles estructurados
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                currentPassword_required:
+                  summary: Current password is required
+                  value:
+                    success: false
+                    error:
+                      name: "ZodError"
+                      message: "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"currentPassword\"\n    ],\n    \"message\": \"La contraseña actual es obligatoria\"\n  }\n]"
         '401':
           description: No autenticado - Token de acceso requerido
           content:
@@ -1054,6 +989,7 @@ paths:
     delete:
       tags:
         - Users
+      description: Eliminar la cuenta de un usuario específico. Requiere autenticación.
       security:
         - bearerAuth: []
       parameters:
