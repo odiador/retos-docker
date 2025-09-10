@@ -183,13 +183,13 @@ users.openapi(createRoute({
 
   // Si no es admin, verificar la contraseña actual
   if (decoded.sub === username) {
-    const result = await db(`SELECT password_hash FROM ${SCHEMA}.users WHERE id=$1 LIMIT 1`, [decoded.uid])
-    const match = await bcrypt.compare(currentPassword, result.rows[0].password_hash)
+    const result = await db(`SELECT password FROM ${SCHEMA}.users WHERE id=$1 LIMIT 1`, [decoded.uid])
+    const match = await bcrypt.compare(currentPassword, result.rows[0].password)
     if (!match) return c.json({ error: 'Contraseña actual incorrecta' }, 401)
   }
 
   const newHash = await bcrypt.hash(newPassword, 10)
-  await db(`UPDATE ${SCHEMA}.users SET password_hash=$1, updated_at = NOW() WHERE id=$2`, [newHash, targetUserId])
+  await db(`UPDATE ${SCHEMA}.users SET password=$1, updated_at = NOW() WHERE id=$2`, [newHash, targetUserId])
   return c.json({ message: 'Contraseña cambiada exitosamente' })
 })
 
