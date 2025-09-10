@@ -6,12 +6,13 @@ health.openapi({
   method: 'get',
   path: '/health',
   tags: ['Health'],
+  security: [], // Endpoint público - no requiere autenticación
   responses: {
     200: {
-      description: 'Health check',
+      description: 'Health check exitoso - El servicio está funcionando correctamente',
       content: {
         'text/plain': {
-          schema: { type: 'string' }
+          schema: { type: 'string', description: 'Respuesta simple de estado' }
         }
       }
     }

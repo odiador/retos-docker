@@ -50,6 +50,7 @@ auth.openapi(createRoute({
   method: 'post',
   path: '/accounts',
   tags: ['Authentication'],
+  security: [{ bearerAuth: [] }],
   request: {
     body: {
       content: {
@@ -150,6 +151,7 @@ auth.openapi(createRoute({
   method: 'post',
   path: '/auth/login',
   tags: ['Authentication'],
+  security: [], // Endpoint público - no requiere autenticación
   request: {
     body: {
       content: {
@@ -248,6 +250,7 @@ auth.openapi(createRoute({
   method: 'post',
   path: '/passwords/validation-codes',
   tags: ['Authentication'],
+  security: [], // Endpoint público - no requiere autenticación
   request: {
     body: {
       content: {

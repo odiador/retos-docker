@@ -26,6 +26,7 @@ users.openapi(createRoute({
   method: 'get',
   path: '/accounts/{username}',
   tags: ['Users'],
+  security: [{ bearerAuth: [] }],
   middleware: [authMw],
   request: {
     params: z.object({
@@ -75,6 +76,7 @@ users.openapi(createRoute({
   method: 'patch',
   path: '/accounts/me',
   tags: ['Users'],
+  security: [{ bearerAuth: [] }],
   middleware: [authMw],
   request: { body: { content: { 'application/json': { schema: patchBody } } } },
   responses: {
@@ -112,6 +114,7 @@ users.openapi(createRoute({
   method: 'put',
   path: '/accounts/me/password',
   tags: ['Users'],
+  security: [{ bearerAuth: [] }],
   middleware: [authMw],
   request: { body: { content: { 'application/json': { schema: changePassBody } } } },
   responses: {
@@ -158,6 +161,7 @@ users.openapi(createRoute({
   method: 'get',
   path: '/admin/accounts',
   tags: ['Users'],
+  security: [{ bearerAuth: [] }],
   middleware: [authMw],
   request: { query: listQuery },
   responses: {
@@ -246,6 +250,7 @@ users.openapi(createRoute({
   method: 'delete',
   path: '/accounts/me',
   tags: ['Users'],
+  security: [{ bearerAuth: [] }],
   middleware: [authMw],
   responses: {
     200: {
