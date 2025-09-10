@@ -9,34 +9,37 @@ const users = new OpenAPIHono()
 
 // Shared user schema
 const userSchema = z.object({
-  id: z.string(),
-  username: z.string(),
-  email: z.string(),
-  firstName: z.string().nullable().optional(),
-  lastName: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  role: z.string(),
-  status: z.string(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().nullable().optional(),
-  lastLoginAt: z.string().nullable().optional(),
+  id: z.string().describe('ID único del usuario'),
+  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres').max(20, 'El nombre de usuario no puede tener más de 20 caracteres').describe('Nombre de usuario único'),
+  email: z.string().email('Formato de email inválido').describe('Correo electrónico del usuario'),
+  firstName: z.string().nullable().optional().describe('Nombre del usuario'),
+  lastName: z.string().nullable().optional().describe('Apellido del usuario'),
+  phone: z.string().nullable().optional().describe('Número de teléfono'),
+  role: z.string().describe('Rol del usuario en el sistema'),
+  status: z.string().describe('Estado de la cuenta del usuario'),
+  createdAt: z.string().optional().describe('Fecha de creación de la cuenta'),
+  updatedAt: z.string().nullable().optional().describe('Fecha de última actualización'),
+  lastLoginAt: z.string().nullable().optional().describe('Fecha del último inicio de sesión'),
 })
 
 users.openapi(createRoute({
   method: 'get',
   path: '/accounts/{username}',
+  tags: ['Users'],
   middleware: [authMw],
   request: {
     params: z.object({
       username: z.string()
-        .min(3, 'Username debe tener al menos 3 caracteres')
-        .max(20, 'Username no puede tener más de 20 caracteres')
+        .min(3, 'El nombre de usuario debe tener al menos 3 caracteres')
+        .max(20, 'El nombre de usuario no puede tener más de 20 caracteres')
+        .regex(/^[a-zA-Z0-9_]+$/, 'El nombre de usuario solo puede contener letras, números y guiones bajos')
+        .describe('Nombre de usuario del perfil a consultar')
     })
   },
   responses: {
-    200: { description: 'Perfil del usuario', content: { 'application/json': { schema: z.object({ user: userSchema }) } } },
-    401: { description: 'No autenticado' },
-    403: { description: 'No autorizado para ver este usuario' },
+    200: { description: 'Perfil del usuario obtenido exitosamente', content: { 'application/json': { schema: z.object({ user: userSchema }).describe('Respuesta con la información del perfil del usuario') } } },
+    401: { description: 'No autenticado - Token de acceso requerido' },
+    403: { description: 'No autorizado para ver este perfil de usuario' },
     404: { description: 'Usuario no encontrado' }
   },
 }), async (c) => {
@@ -63,20 +66,21 @@ users.openapi(createRoute({
    PATCH /users/me
 ===================== */
 const patchBody = z.object({
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  phone: z.string().optional(),
+  firstName: z.string().min(1, 'El nombre no puede estar vacío').max(50, 'El nombre no puede tener más de 50 caracteres').optional().describe('Nuevo nombre del usuario'),
+  lastName: z.string().min(1, 'El apellido no puede estar vacío').max(50, 'El apellido no puede tener más de 50 caracteres').optional().describe('Nuevo apellido del usuario'),
+  phone: z.string().min(1, 'El teléfono no puede estar vacío').max(20, 'El teléfono no puede tener más de 20 caracteres').optional().describe('Nuevo número de teléfono'),
 })
 
 users.openapi(createRoute({
   method: 'patch',
   path: '/accounts/me',
+  tags: ['Users'],
   middleware: [authMw],
   request: { body: { content: { 'application/json': { schema: patchBody } } } },
   responses: {
-    200: { description: 'Perfil actualizado', content: { 'application/json': { schema: z.object({ user: userSchema }) } } },
-    400: { description: 'Sin cambios' },
-    401: { description: 'No autenticado' }
+    200: { description: 'Perfil de usuario actualizado exitosamente', content: { 'application/json': { schema: z.object({ user: userSchema }).describe('Respuesta con la información actualizada del perfil') } } },
+    400: { description: 'Sin cambios - Los datos proporcionados son idénticos a los actuales' },
+    401: { description: 'No autenticado - Token de acceso requerido' }
   },
 }), async (c) => {
   const decoded = c.get('user')
@@ -100,19 +104,20 @@ users.openapi(createRoute({
    PUT /users/me/password
 ===================== */
 const changePassBody = z.object({
-  currentPassword: z.string(),
-  newPassword: z.string().min(8),
+  currentPassword: z.string().min(1, 'La contraseña actual es obligatoria').describe('Contraseña actual del usuario'),
+  newPassword: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres').max(100, 'La nueva contraseña no puede tener más de 100 caracteres').describe('Nueva contraseña segura'),
 })
 
 users.openapi(createRoute({
   method: 'put',
   path: '/accounts/me/password',
+  tags: ['Users'],
   middleware: [authMw],
   request: { body: { content: { 'application/json': { schema: changePassBody } } } },
   responses: {
-    200: { description: 'Contraseña cambiada', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
-    400: { description: 'Validación fallida' },
-    401: { description: 'No autenticado' },
+    200: { description: 'Contraseña cambiada exitosamente', content: { 'application/json': { schema: z.object({ message: z.string().describe('Mensaje de confirmación del cambio de contraseña') }) } } },
+    400: { description: 'Validación fallida - Verifique la contraseña actual y la nueva' },
+    401: { description: 'No autenticado - Token de acceso requerido' },
     404: { description: 'Usuario no encontrado' }
   },
 }), async (c) => {
@@ -134,31 +139,32 @@ users.openapi(createRoute({
    GET /users (admin list with pagination)
 ===================== */
 const listQuery = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-  search: z.string().optional(),
-  status: z.string().optional(),
-  sortBy: z.string().optional(),
-  sortOrder: z.string().optional(),
+  page: z.string().regex(/^\d+$/, 'El número de página debe ser un entero positivo').optional().describe('Número de página (empieza en 1)'),
+  limit: z.string().regex(/^\d+$/, 'El límite debe ser un entero positivo').optional().describe('Número de elementos por página (máximo 100)'),
+  search: z.string().optional().describe('Término de búsqueda para filtrar usuarios'),
+  status: z.string().optional().describe('Filtrar por estado del usuario'),
+  sortBy: z.string().optional().describe('Campo por el cual ordenar los resultados'),
+  sortOrder: z.string().regex(/^(asc|desc)$/i, 'El orden debe ser "asc" o "desc"').optional().describe('Orden de clasificación (asc o desc)'),
 })
 
 const listResp = z.object({
-  items: z.array(userSchema),
-  total: z.number(),
-  page: z.number(),
-  limit: z.number(),
+  items: z.array(userSchema).describe('Lista de usuarios'),
+  total: z.number().describe('Total de usuarios encontrados'),
+  page: z.number().describe('Página actual'),
+  limit: z.number().describe('Límite de elementos por página'),
 })
 
 users.openapi(createRoute({
   method: 'get',
   path: '/admin/accounts',
+  tags: ['Users'],
   middleware: [authMw],
   request: { query: listQuery },
   responses: {
-    200: { description: 'Lista de usuarios', content: { 'application/json': { schema: listResp } } },
-    400: { description: 'Parámetros inválidos' },
-    401: { description: 'No autenticado' },
-    403: { description: 'Acceso denegado' },
+    200: { description: 'Lista de usuarios obtenida exitosamente', content: { 'application/json': { schema: listResp.describe('Respuesta con la lista paginada de usuarios') } } },
+    400: { description: 'Parámetros inválidos - Verifique los parámetros de paginación y filtros' },
+    401: { description: 'No autenticado - Token de acceso requerido' },
+    403: { description: 'Acceso denegado - Se requieren permisos de administrador' },
     404: { description: 'Usuario no encontrado' },
     500: { description: 'Error interno del servidor' }
   },
@@ -239,15 +245,16 @@ users.openapi(createRoute({
 users.openapi(createRoute({
   method: 'delete',
   path: '/accounts/me',
+  tags: ['Users'],
   middleware: [authMw],
   responses: {
     200: {
-      description: 'Cuenta eliminada',
+      description: 'Cuenta de usuario eliminada exitosamente',
       content: {
-        'application/json': { schema: z.object({ message: z.string() }) }
+        'application/json': { schema: z.object({ message: z.string().describe('Mensaje de confirmación de eliminación de cuenta') }) }
       }
     },
-    401: { description: 'No autenticado' },
+    401: { description: 'No autenticado - Token de acceso requerido' },
     404: { description: 'Usuario no encontrado' },
     500: { description: 'Error interno del servidor' }
   },

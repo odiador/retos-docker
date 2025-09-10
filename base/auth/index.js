@@ -45,6 +45,11 @@ app.doc('/doc', {
         version: '1.0.0',
         description: 'Reto numero 2 de microservicios',
     },
+    tags: [
+        { name: 'Health', description: 'Health check endpoints' },
+        { name: 'Authentication', description: 'Authentication and registration endpoints' },
+        { name: 'Users', description: 'User management endpoints' }
+    ]
 })
 
 app.notFound((c) => c.text('Recurso no encontrado', 404))

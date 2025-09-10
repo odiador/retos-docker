@@ -13,17 +13,17 @@ const SCHEMA = process.env.DB_SCHEMA || 'auth'
 const auth = new OpenAPIHono()
 
 const baseUserSchema = z.object({
-  id: z.string(),
-  username: z.string(),
-  email: z.string(),
-  firstName: z.string().nullable().optional(),
-  lastName: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  role: z.string(),
-  status: z.string(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().nullable().optional(),
-  lastLoginAt: z.string().nullable().optional(),
+  id: z.string().describe('ID único del usuario'),
+  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres').max(20, 'El nombre de usuario no puede tener más de 20 caracteres').describe('Nombre de usuario único'),
+  email: z.string().email('Formato de email inválido').describe('Correo electrónico del usuario'),
+  firstName: z.string().nullable().optional().describe('Nombre del usuario'),
+  lastName: z.string().nullable().optional().describe('Apellido del usuario'),
+  phone: z.string().nullable().optional().describe('Número de teléfono'),
+  role: z.string().describe('Rol del usuario en el sistema'),
+  status: z.string().describe('Estado de la cuenta del usuario'),
+  createdAt: z.string().optional().describe('Fecha de creación de la cuenta'),
+  updatedAt: z.string().nullable().optional().describe('Fecha de última actualización'),
+  lastLoginAt: z.string().nullable().optional().describe('Fecha del último inicio de sesión'),
 })
 
 /* =====================
@@ -31,24 +31,25 @@ const baseUserSchema = z.object({
 ===================== */
 
 const registerBody = z.object({
-  username: z.string(),
-  email: z.string().email(),
-  password: z.string().min(8),
-  firstName: z.string(),
-  lastName: z.string(),
+  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres').max(20, 'El nombre de usuario no puede tener más de 20 caracteres').regex(/^[a-zA-Z0-9_]+$/, 'El nombre de usuario solo puede contener letras, números y guiones bajos').describe('Nombre de usuario único (3-20 caracteres)'),
+  email: z.string().email('Formato de email inválido').describe('Correo electrónico válido'),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(100, 'La contraseña no puede tener más de 100 caracteres').describe('Contraseña segura (mínimo 8 caracteres)'),
+  firstName: z.string().min(1, 'El nombre es obligatorio').max(50, 'El nombre no puede tener más de 50 caracteres').describe('Nombre del usuario'),
+  lastName: z.string().min(1, 'El apellido es obligatorio').max(50, 'El apellido no puede tener más de 50 caracteres').describe('Apellido del usuario'),
 })
 
 const registerResp = z.object({
-  message: z.string(),
-  user: baseUserSchema,
-  access_token: z.string(),
-  token_type: z.literal('Bearer'),
-  expires_in: z.number().nullable(),
+  message: z.string().describe('Mensaje de confirmación del registro'),
+  user: baseUserSchema.describe('Información del usuario registrado'),
+  access_token: z.string().describe('Token de acceso JWT'),
+  token_type: z.literal('Bearer').describe('Tipo de token de autenticación'),
+  expires_in: z.number().nullable().describe('Tiempo de expiración del token en segundos'),
 })
 
 auth.openapi(createRoute({
   method: 'post',
   path: '/accounts',
+  tags: ['Authentication'],
   request: {
     body: {
       content: {
@@ -57,9 +58,9 @@ auth.openapi(createRoute({
     }
   },
   responses: {
-    201: { description: 'Usuario registrado', content: { 'application/json': { schema: registerResp } } },
-    400: { description: 'Datos inválidos' },
-    409: { description: 'Usuario existente' },
+    201: { description: 'Usuario registrado exitosamente', content: { 'application/json': { schema: registerResp.describe('Respuesta con la información del usuario registrado y token de acceso') } } },
+    400: { description: 'Datos inválidos - Verifique los campos obligatorios y formatos' },
+    409: { description: 'Usuario existente - El nombre de usuario o email ya están registrados' },
     500: { description: 'Error interno del servidor' }
   },
 }), async (c) => {
@@ -134,20 +135,21 @@ auth.openapi(createRoute({
   Realiza el inicio de sesión, dado el email y la contraseña
 ===================== */
 const loginBody = z.object({
-  identifier: z.string(), // username o email
-  password: z.string(),
+  identifier: z.string().min(1, 'El identificador es obligatorio').describe('Nombre de usuario o correo electrónico'),
+  password: z.string().min(1, 'La contraseña es obligatoria').describe('Contraseña del usuario'),
 })
 
 const loginResp = z.object({
-  access_token: z.string(),
-  token_type: z.literal('Bearer'),
-  expires_in: z.number().nullable(),
-  user: baseUserSchema,
+  access_token: z.string().describe('Token de acceso JWT para autenticación'),
+  token_type: z.literal('Bearer').describe('Tipo de token de autenticación'),
+  expires_in: z.number().nullable().describe('Tiempo de expiración del token en segundos'),
+  user: baseUserSchema.describe('Información del usuario autenticado'),
 })
 
 auth.openapi(createRoute({
   method: 'post',
   path: '/auth/login',
+  tags: ['Authentication'],
   request: {
     body: {
       content: {
@@ -156,9 +158,9 @@ auth.openapi(createRoute({
     }
   },
   responses: {
-    200: { description: 'Login exitoso', content: { 'application/json': { schema: loginResp } } },
-    400: { description: 'Datos inválidos' },
-    401: { description: 'Credenciales inválidas' },
+    200: { description: 'Inicio de sesión exitoso', content: { 'application/json': { schema: loginResp.describe('Respuesta con token de acceso y información del usuario') } } },
+    400: { description: 'Datos inválidos - Verifique el identificador y contraseña' },
+    401: { description: 'Credenciales inválidas - Usuario o contraseña incorrectos' },
     500: { description: 'Error interno del servidor' }
   },
 }), async (c) => {
@@ -236,13 +238,16 @@ auth.openapi(createRoute({
   Enviar el código de validación por email
 ===================== */
 const forgotBody = z.object({
-  email: z.string().email(),
+  email: z.string().email('Formato de email inválido').describe('Correo electrónico registrado para recuperar contraseña'),
 })
-const forgotResp = z.object({ message: z.string() })
+const forgotResp = z.object({ 
+  message: z.string().describe('Mensaje de confirmación del envío del código de validación')
+})
 
 auth.openapi(createRoute({
   method: 'post',
   path: '/passwords/validation-codes',
+  tags: ['Authentication'],
   request: {
     body: {
       content: {
@@ -251,8 +256,8 @@ auth.openapi(createRoute({
     }
   },
   responses: {
-    200: { description: 'Aceptado', content: { 'application/json': { schema: forgotResp } } },
-    400: { description: 'Datos inválidos' },
+    200: { description: 'Código de validación enviado exitosamente', content: { 'application/json': { schema: forgotResp.describe('Respuesta con mensaje de confirmación del envío') } } },
+    400: { description: 'Datos inválidos - Verifique el formato del email' },
     500: { description: 'Error interno del servidor' }
   },
 }), async (c) => {

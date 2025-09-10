@@ -29,8 +29,8 @@ app.openapi(
         content: {
           'application/json': {
             schema: z.object({
-              email: z.string().email(),
-              code: z.string(),
+              email: z.string().email('Formato de email inválido').describe('Correo electrónico del usuario'),
+              code: z.string().min(1, 'El código de autorización es obligatorio').describe('Código de autorización OAuth'),
             }),
           },
         },
@@ -38,12 +38,12 @@ app.openapi(
     },
     responses: {
       200: {
-        description: 'Autenticación exitosa',
+        description: 'Autenticación OAuth exitosa',
         content: {
           'application/json': {
             schema: z.object({
-              accessToken: z.string(),
-              refreshToken: z.string(),
+              accessToken: z.string().describe('Token de acceso JWT'),
+              refreshToken: z.string().describe('Token de refresco para obtener nuevos tokens'),
             }),
           },
         },
