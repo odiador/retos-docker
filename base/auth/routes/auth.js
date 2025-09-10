@@ -5,26 +5,13 @@ import bcrypt from 'bcryptjs'
 import query from '../db.js'
 import { parseTokenExpToSeconds } from '../utils/token.js'
 import crypto from 'crypto'
+import { baseUserSchema, userSchema, errorResponse, validationErrorResponse, successResponse } from '../schemas.js'
 
 const SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro'
 const TOKEN_EXP = process.env.TOKEN_EXP || '1h'
 const SCHEMA = process.env.DB_SCHEMA || 'auth'
 
 const auth = new OpenAPIHono()
-
-const baseUserSchema = z.object({
-  id: z.string().describe('ID único del usuario'),
-  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres').max(20, 'El nombre de usuario no puede tener más de 20 caracteres').describe('Nombre de usuario único'),
-  email: z.string().email('Formato de email inválido').describe('Correo electrónico del usuario'),
-  firstName: z.string().nullable().optional().describe('Nombre del usuario'),
-  lastName: z.string().nullable().optional().describe('Apellido del usuario'),
-  phone: z.string().nullable().optional().describe('Número de teléfono'),
-  role: z.string().describe('Rol del usuario en el sistema'),
-  status: z.string().describe('Estado de la cuenta del usuario'),
-  createdAt: z.string().optional().describe('Fecha de creación de la cuenta'),
-  updatedAt: z.string().nullable().optional().describe('Fecha de última actualización'),
-  lastLoginAt: z.string().nullable().optional().describe('Fecha del último inicio de sesión'),
-})
 
 /* =====================
   Registrar un nuevo usuario
@@ -50,7 +37,7 @@ auth.openapi(createRoute({
   method: 'post',
   path: '/accounts',
   tags: ['Authentication'],
-  security: [{ bearerAuth: [] }],
+  security: [], // Endpoint público - no requiere autenticación
   request: {
     body: {
       content: {
@@ -60,9 +47,9 @@ auth.openapi(createRoute({
   },
   responses: {
     201: { description: 'Usuario registrado exitosamente', content: { 'application/json': { schema: registerResp.describe('Respuesta con la información del usuario registrado y token de acceso') } } },
-    400: { description: 'Datos inválidos - Verifique los campos obligatorios y formatos' },
-    409: { description: 'Usuario existente - El nombre de usuario o email ya están registrados' },
-    500: { description: 'Error interno del servidor' }
+    400: { description: 'Datos inválidos - Verifique los campos obligatorios y formatos', content: { 'application/json': { schema: validationErrorResponse } } },
+    409: { description: 'Usuario existente - El nombre de usuario o email ya están registrados', content: { 'application/json': { schema: errorResponse } } },
+    500: { description: 'Error interno del servidor', content: { 'application/json': { schema: errorResponse } } }
   },
 }), async (c) => {
   try {
@@ -133,7 +120,8 @@ auth.openapi(createRoute({
 
 
 /* =====================
-  Realiza el inicio de sesión, dado el email y la contraseña
+  POST /sessions - Crear una nueva sesión (login)
+  Crea una nueva sesión de usuario y devuelve un token JWT
 ===================== */
 const loginBody = z.object({
   identifier: z.string().min(1, 'El identificador es obligatorio').describe('Nombre de usuario o correo electrónico'),
@@ -149,7 +137,7 @@ const loginResp = z.object({
 
 auth.openapi(createRoute({
   method: 'post',
-  path: '/auth/login',
+  path: '/sessions',
   tags: ['Authentication'],
   security: [], // Endpoint público - no requiere autenticación
   request: {
@@ -160,10 +148,10 @@ auth.openapi(createRoute({
     }
   },
   responses: {
-    200: { description: 'Inicio de sesión exitoso', content: { 'application/json': { schema: loginResp.describe('Respuesta con token de acceso y información del usuario') } } },
-    400: { description: 'Datos inválidos - Verifique el identificador y contraseña' },
-    401: { description: 'Credenciales inválidas - Usuario o contraseña incorrectos' },
-    500: { description: 'Error interno del servidor' }
+    200: { description: 'Sesión creada exitosamente', content: { 'application/json': { schema: loginResp.describe('Respuesta con token de acceso y información del usuario') } } },
+    400: { description: 'Datos inválidos - Verifique el identificador y contraseña', content: { 'application/json': { schema: validationErrorResponse } } },
+    401: { description: 'Credenciales inválidas - Usuario o contraseña incorrectos', content: { 'application/json': { schema: errorResponse } } },
+    500: { description: 'Error interno del servidor', content: { 'application/json': { schema: errorResponse } } }
   },
 }), async (c) => {
   try {
@@ -222,7 +210,7 @@ auth.openapi(createRoute({
     const expiresIn = parseTokenExpToSeconds(TOKEN_EXP)
 
     return c.json({
-      message: 'Login exitoso',
+      message: 'Sesión creada exitosamente',
       access_token: token,
       token_type: 'Bearer',
       expires_in: expiresIn,
@@ -230,25 +218,26 @@ auth.openapi(createRoute({
     }, 200)
 
   } catch (error) {
-    console.error('Error en login:', error)
+    console.error('Error al crear sesión:', error)
     return c.json({ error: 'Error interno del servidor' }, 500)
   }
 })
 
 
 /* =====================
-  Enviar el código de validación por email
+  POST /codes - Solicitar código de verificación
+  Envía un código de verificación al email proporcionado
 ===================== */
 const forgotBody = z.object({
-  email: z.string().email('Formato de email inválido').describe('Correo electrónico registrado para recuperar contraseña'),
+  email: z.string().email('Formato de email inválido').describe('Correo electrónico donde enviar el código'),
 })
 const forgotResp = z.object({ 
-  message: z.string().describe('Mensaje de confirmación del envío del código de validación')
+  message: z.string().describe('Mensaje de confirmación del envío del código')
 })
 
 auth.openapi(createRoute({
   method: 'post',
-  path: '/passwords/validation-codes',
+  path: '/codes',
   tags: ['Authentication'],
   security: [], // Endpoint público - no requiere autenticación
   request: {
@@ -259,9 +248,9 @@ auth.openapi(createRoute({
     }
   },
   responses: {
-    200: { description: 'Código de validación enviado exitosamente', content: { 'application/json': { schema: forgotResp.describe('Respuesta con mensaje de confirmación del envío') } } },
-    400: { description: 'Datos inválidos - Verifique el formato del email' },
-    500: { description: 'Error interno del servidor' }
+    200: { description: 'Código enviado exitosamente', content: { 'application/json': { schema: forgotResp.describe('Respuesta con mensaje de confirmación del envío del código') } } },
+    400: { description: 'Datos inválidos - Verifique el formato del email', content: { 'application/json': { schema: errorResponse } } },
+    500: { description: 'Error interno del servidor', content: { 'application/json': { schema: errorResponse } } }
   },
 }), async (c) => {
   try {
